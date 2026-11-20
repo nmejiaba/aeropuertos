@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Aeropuertos">
+<meta name="theme-color" content="#0b2a4a">
+<title>Aeropuertos</title>
+<style>
+:root{
+  --bg:#f4f5f7; --panel:#ffffff; --ink:#14202e; --muted:#5b6b7c; --line:#d8dde3;
+  --accent:#0b57d0; --accent-ink:#ffffff; --danger:#b3261e; --field:#fbfcfd; --active:#e6eefc;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0e1319; --panel:#161d26; --ink:#e8edf2; --muted:#93a1b0; --line:#2a3441;
+    --accent:#7aa7ff; --accent-ink:#0b1220; --danger:#ff8a80; --field:#111821; --active:#1d2b44;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  background:var(--bg); color:var(--ink); -webkit-text-size-adjust:100%;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{
+  min-height:44px; padding:0 14px; border-radius:10px; border:1px solid var(--line);
+  background:var(--panel); cursor:pointer;
+}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button.danger{color:var(--danger);border-color:var(--danger);background:transparent}
+button.ghost{border-color:transparent;background:transparent;color:var(--accent)}
+button:active{opacity:.75}
+
+.app{display:grid;grid-template-columns:340px 1fr;height:100vh;height:100dvh}
+.side{display:flex;flex-direction:column;background:var(--panel);border-right:1px solid var(--line);min-height:0}
+.side-head{padding:calc(12px + env(safe-area-inset-top)) 14px 10px;border-bottom:1px solid var(--line)}
+.side-head h1{margin:0 0 10px;font-size:22px}
+.side-head input[type=search]{
+  width:100%;min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--field);margin-bottom:10px
+}
+.row{display:flex;gap:8px}
+.row button{flex:1;padding:0 8px}
+.list{list-style:none;margin:0;padding:0;overflow:auto;flex:1;-webkit-overflow-scrolling:touch}
+.list li button{
+  display:flex;align-items:center;gap:10px;width:100%;text-align:left;min-height:56px;
+  border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;padding:8px 14px
+}
+.list li.active button{background:var(--active)}
+.list .icao{font-weight:700;font-size:18px;min-width:56px}
+.list .meta{color:var(--muted);font-size:14px;flex:1}
+.badge{font-size:13px;font-weight:700;border:1px solid var(--line);border-radius:999px;padding:2px 9px}
+.none{padding:18px 14px;color:var(--muted)}
+.side-foot{padding:10px 14px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+
+.main{display:flex;flex-direction:column;min-height:0;min-width:0}
+.main-head{
+  display:flex;align-items:center;gap:8px;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+  background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:2
+}
+.main-head h2{margin:0;font-size:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.spacer{flex:1}
+.back{display:none}
+#form{overflow:auto;padding:14px 16px calc(40px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch;flex:1}
+fieldset{border:1px solid var(--line);border-radius:12px;background:var(--panel);margin:0 0 16px;padding:10px 14px 14px}
+legend{font-weight:700;padding:0 6px;color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px 14px}
+.fld{display:flex;flex-direction:column;gap:4px}
+.fld.wide{grid-column:1 / -1}
+.fld span{font-size:13px;color:var(--muted);letter-spacing:.02em}
+.fld input,.fld select,.fld textarea{
+  width:100%;min-height:44px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--field)
+}
+.fld textarea{resize:vertical;line-height:1.35;overflow:hidden}
+.fld input:focus,.fld select:focus,.fld textarea:focus{outline:2px solid var(--accent);outline-offset:0}
+.empty{display:none;margin:auto;color:var(--muted);padding:30px;text-align:center}
+.main.is-empty #form{display:none}
+.main.is-empty .empty{display:block}
+.main.is-empty #btnSave,.main.is-empty #btnDelete{display:none}
+
+#toast{
+  position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);
+  background:#14202e;color:#fff;padding:10px 16px;border-radius:999px;font-size:15px;opacity:0;pointer-events:none;
+  transition:opacity .2s;z-index:10;max-width:90vw;text-align:center
+}
+#toast.show{opacity:1}
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--ink);padding:18px;max-width:420px;width:calc(100% - 32px)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog h3{margin:0 0 6px}
+dialog p{margin:0 0 14px;color:var(--muted);font-size:14px}
+dialog .stack{display:flex;flex-direction:column;gap:10px}
+
+@media (max-width:820px){
+  .app{grid-template-columns:1fr}
+  .main{display:none}
+  .app.show-form .side{display:none}
+  .app.show-form .main{display:flex}
+  .back{display:inline-block}
+}
+</style>
+</head>
+<body>
+<noscript>Esta página necesita JavaScript.</noscript>
+
+<div class="app" id="app">
+  <aside class="side">
+    <div class="side-head">
+      <h1>Aeropuertos</h1>
+      <input id="q" type="search" placeholder="Buscar ICAO o IATA" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      <div class="row">
+        <button id="btnNew" class="primary">+ Nuevo</button>
+        <button id="btnImport">Importar</button>
+        <button id="btnExport">Exportar</button>
+      </div>
+    </div>
+    <ul id="list" class="list"></ul>
+    <div class="side-foot" id="info"></div>
+  </aside>
+
+  <main class="main is-empty" id="main">
+    <div class="main-head">
+      <button id="btnBack" class="ghost back">‹ Lista</button>
+      <h2 id="formTitle">Aeropuerto</h2>
+      <span class="spacer"></span>
+      <button id="btnDelete" class="danger">Eliminar</button>
+      <button id="btnSave" class="primary">Guardar</button>
+    </div>
+    <form id="form" autocomplete="off" onsubmit="return false"></form>
+    <div class="empty" id="empty">Selecciona un aeropuerto de la lista o toca “+ Nuevo”.</div>
+  </main>
+</div>
+
+<input type="file" id="file" accept=".csv,.json,text/csv,application/json,text/plain" hidden>
+
+<dialog id="dlgExport">
+  <h3>Exportar</h3>
+  <p>El respaldo (.json) guarda todo y sirve para pasar tus aeropuertos a otro dispositivo. La tabla (.csv) se abre en Excel o Google Sheets.</p>
+  <div class="stack">
+    <button id="expJson" class="primary">Respaldo completo (.json)</button>
+    <button id="expCsv">Tabla (.csv)</button>
+    <button id="expClose" class="ghost">Cerrar</button>
+  </div>
+</dialog>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+
+/* ====================================================================
+   CONFIGURACIÓN
+   Los nombres de la izquierda son los de las columnas de AD_DB (no los
+   cambies: sirven para importar). Lo que está a la derecha es el rótulo
+   que se ve sobre cada campo: cámbialo a tu gusto.
+   ==================================================================== */
+const LABELS = {
+  DATE: "DATE",
+  ICAO: "ICAO",
+  IATA: "IATA",
+  CAT: "CAT",
+  DATE_CCI: "DATE_CCI",
+  DATE_AOI: "DATE_AOI",
+  CCI_ARR: "CCI_ARR",
+  FREQ: "FREQ",
+  CCI_PARK: "CCI_PARK",
+  CCI_RETI: "CCI_RETI",
+  CCI_GNDOPS: "CCI_GNDOPS",
+  AOI_Taxirest: "AOI_Taxirest",
+  AOI_Ops: "AOI_Ops",
+  AOI_NAP: "AOI_NAP",
+  AOI_Speed_ARR: "AOI_Speed_ARR",
+  AOI_NAP_ARR: "AOI_NAP_ARR",
+  AOI_PROC_ARR: "AOI_PROC_ARR",
+  CRA_ARR: "CRA_ARR",
+  CCI_DEP: "CCI_DEP",
+  AOI_Speed_DEP: "AOI_Speed_DEP",
+  AOI_STARTUP: "AOI_STARTUP",
+  AOI_PROC_DEP: "AOI_PROC_DEP",
+  AOI_NAP_DEP: "AOI_NAP_DEP",
+  CRA_DEP: "CRA_DEP",
+  VARIOS_DEP: "VARIOS_DEP",
+  VARIOS_ARR: "VARIOS_ARR"
+};
+
+// Orden de las columnas (igual que AD_DB). Se usa al exportar a CSV.
+const FIELD_ORDER = Object.keys(LABELS);
+
+// Cómo se agrupan en pantalla. t: text | date | select | area
+const SECTIONS = [
+  { title: "Identificación", fields: [
+    { k: "ICAO", t: "text", upper: true },
+    { k: "IATA", t: "text", upper: true },
+    { k: "CAT", t: "select", opts: ["A", "B", "C"] },
+    { k: "FREQ", t: "text" },
+    { k: "DATE", t: "date" },
+    { k: "DATE_CCI", t: "date" },
+    { k: "DATE_AOI", t: "date" }
+  ]},
+  { title: "General", fields: [
+    { k: "AOI_Taxirest", t: "area" },
+    { k: "AOI_Ops", t: "area" },
+    { k: "AOI_NAP", t: "area" }
+  ]},
+  { title: "Llegada (ARR)", fields: [
+    { k: "CCI_ARR", t: "area" },
+    { k: "CCI_PARK", t: "area" },
+    { k: "CCI_RETI", t: "area" },
+    { k: "CCI_GNDOPS", t: "area" },
+    { k: "AOI_Speed_ARR", t: "area" },
+    { k: "AOI_NAP_ARR", t: "area" },
+    { k: "AOI_PROC_ARR", t: "area" },
+    { k: "CRA_ARR", t: "area" },
+    { k: "VARIOS_ARR", t: "area" }
+  ]},
+  { title: "Salida (DEP)", fields: [
+    { k: "CCI_DEP", t: "area" },
+    { k: "AOI_Speed_DEP", t: "area" },
+    { k: "AOI_STARTUP", t: "area" },
+    { k: "AOI_PROC_DEP", t: "area" },
+    { k: "AOI_NAP_DEP", t: "area" },
+    { k: "CRA_DEP", t: "area" },
+    { k: "VARIOS_DEP", t: "area" }
+  ]}
+];
+
+const DATE_KEYS = FIELD_ORDER.filter(k => k.startsWith("DATE"));
+const STORE_KEY = "ad_db_v1";
+const BACKUP_KEY = "ad_last_backup";
+
+/* ====================================================================
+   DATOS
+   ==================================================================== */
+const $ = s => document.querySelector(s);
+let db = loadDB();
+let currentId = null;     // _id del registro abierto (null = nuevo)
+let dirty = false;
+
+function loadDB() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) { return []; }
+}
+function saveDB() {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(db));
+    return true;
+  } catch (e) {
+    alert("No se pudo guardar en este dispositivo (almacenamiento lleno o bloqueado). Haz un respaldo ahora con Exportar.");
+    return false;
+  }
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function blankRecord() { const r = {}; FIELD_ORDER.forEach(k => r[k] = ""); return r; }
+
+/* ====================================================================
+   UTILIDADES
+   ==================================================================== */
+let toastTimer;
+function toast(msg) {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+function isISO(s) { return /^\d{4}-\d{2}-\d{2}$/.test(s); }
+
+// Convierte fechas como 25/10/2026 o 2026-10-25 a 2026-10-25. Si no la entiende, la deja igual.
+function normDate(s) {
+  s = String(s == null ? "" : s).trim();
+  if (!s) return "";
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})(?:\D.*)?$/);
+  if (m) {
+    let a = +m[1], b = +m[2];
+    const y = m[3];
+    let d = a, mo = b;                 // por defecto día/mes/año
+    if (a <= 12 && b > 12) { mo = a; d = b; }   // 10/25/2026 -> mes/día/año
+    if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+      return y + "-" + String(mo).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+    }
+  }
+  return s;
+}
+function fmtDate(iso) {
+  if (!isISO(iso)) return iso || "";
+  const [y, m, d] = iso.split("-");
+  return d + "/" + m + "/" + y;
+}
+
+/* ====================================================================
+   FORMULARIO
+   ==================================================================== */
+const form = $("#form");
+
+function autosize(el) {
+  el.style.height = "auto";
+  el.style.height = Math.max(el.scrollHeight + 2, 46) + "px";
+}
+
+function buildForm() {
+  SECTIONS.forEach(sec => {
+    const fs = document.createElement("fieldset");
+    const lg = document.createElement("legend");
+    lg.textContent = sec.title;
+    fs.appendChild(lg);
+    const grid = document.createElement("div");
+    grid.className = "grid";
+
+    sec.fields.forEach(f => {
+      const wrap = document.createElement("label");
+      wrap.className = "fld" + (f.t === "area" ? " wide" : "");
+      const span = document.createElement("span");
+      span.textContent = LABELS[f.k] || f.k;
+      let el;
+      if (f.t === "select") {
+        el = document.createElement("select");
+        [""].concat(f.opts).forEach(o => {
+          const op = document.createElement("option");
+          op.value = o; op.textContent = o || "—";
+          el.appendChild(op);
+        });
+      } else if (f.t === "area") {
+        el = document.createElement("textarea");
+        el.rows = 2;
+        el.addEventListener("input", () => autosize(el));
+      } else {
+        el = document.createElement("input");
+        el.type = f.t === "date" ? "date" : "text";
+      }
+      el.name = f.k;
+      if (f.t !== "select" && f.t !== "date") {
+        el.setAttribute("autocomplete", "off");
+        el.setAttribute("autocorrect", "off");
+        el.setAttribute("spellcheck", "false");
+        el.setAttribute("autocapitalize", f.upper ? "characters" : "none");
+      }
+      if (f.upper) el.addEventListener("input", () => {
+        const p = el.selectionStart;
+        el.value = el.value.toUpperCase();
+        try { el.setSelectionRange(p, p); } catch (e) {}
+      });
+      el.addEventListener("input", () => { dirty = true; });
+      el.addEventListener("change", () => { dirty = true; });
+      wrap.append(span, el);
+      grid.appendChild(wrap);
+    });
+    fs.appendChild(grid);
+    form.appendChild(fs);
+  });
+}
+
+function fillForm(rec) {
+  FIELD_ORDER.forEach(k => {
+    const el = form.elements[k];
+    if (!el) return;
+    const v = rec[k] == null ? "" : String(rec[k]);
+    if (el.type === "date") {
+      el.value = isISO(v) ? v : "";
+      el.dataset.raw = isISO(v) ? "" : v;   // si venía en otro formato, se conserva al guardar
+    } else {
+      el.value = v;
+    }
+  });
+  form.querySelectorAll("textarea").forEach(autosize);
+}
+
+function collectForm() {
+  const rec = {};
+  FIELD_ORDER.forEach(k => {
+    const el = form.elements[k];
+    let v = el ? el.value : "";
+    if (el && el.type === "date" && v === "" && el.dataset.raw) v = el.dataset.raw;
+    v = String(v).replace(/\r\n/g, "\n").trim();
+    if (k === "ICAO" || k === "IATA") v = v.toUpperCase();
+    rec[k] = v;
+  });
+  return rec;
+}
+
+function showForm(rec, title) {
+  // Primero se muestra el formulario y luego se llena, para que los campos de texto midan bien su altura
+  $("#main").classList.remove("is-empty");
+  $("#app").classList.add("show-form");
+  fillForm(rec);
+  $("#formTitle").textContent = title;
+  $("#btnDelete").style.display = currentId ? "" : "none";
+  dirty = false;
+  form.scrollTop = 0;
+  renderList();
+}
+
+function guard(fn) {
+  if (dirty && !confirm("Hay cambios sin guardar. ¿Descartarlos?")) return;
+  fn();
+}
+
+function openRecord(id) {
+  const rec = db.find(r => r._id === id);
+  if (!rec) return;
+  currentId = id;
+  showForm(rec, rec.ICAO || "Aeropuerto");
+}
+function newRecord() {
+  currentId = null;
+  showForm(blankRecord(), "Nuevo aeropuerto");
+  const el = form.elements["ICAO"];
+  if (el) el.focus();
+}
+
+function saveForm() {
+  const rec = collectForm();
+  if (!rec.ICAO) { toast("Falta el ICAO"); form.elements["ICAO"].focus(); return; }
+
+  const other = db.find(r => r.ICAO === rec.ICAO && r._id !== currentId);
+  if (other) {
+    if (!confirm("Ya existe " + rec.ICAO + " en tu lista. ¿Reemplazarlo con lo que está en pantalla?")) return;
+    db = db.filter(r => r._id !== other._id);
+  }
+  if (currentId) {
+    const i = db.findIndex(r => r._id === currentId);
+    db[i] = Object.assign({ _id: currentId }, rec);
+  } else {
+    currentId = uid();
+    db.push(Object.assign({ _id: currentId }, rec));
+  }
+  if (!saveDB()) return;
+  dirty = false;
+  $("#formTitle").textContent = rec.ICAO;
+  $("#btnDelete").style.display = "";
+  renderList();
+  toast("Guardado");
+}
+
+function deleteRecord() {
+  if (!currentId) return;
+  const rec = db.find(r => r._id === currentId);
+  if (!confirm("¿Eliminar " + (rec ? rec.ICAO : "este aeropuerto") + "? No se puede deshacer.")) return;
+  db = db.filter(r => r._id !== currentId);
+  saveDB();
+  currentId = null;
+  dirty = false;
+  $("#main").classList.add("is-empty");
+  $("#app").classList.remove("show-form");
+  renderList();
+  toast("Eliminado");
+}
+
+/* ====================================================================
+   LISTA
+   ==================================================================== */
+function renderList() {
+  const q = $("#q").value.trim().toUpperCase();
+  const ul = $("#list");
+  ul.textContent = "";
+  const rows = db
+    .filter(r => !q || (r.ICAO || "").includes(q) || (r.IATA || "").includes(q))
+    .sort((a, b) => (a.ICAO || "").localeCompare(b.ICAO || ""));
+
+  if (rows.length === 0) {
+    const d = document.createElement("div");
+    d.className = "none";
+    d.textContent = db.length === 0
+      ? "Todavía no hay aeropuertos. Toca “+ Nuevo” o importa tu tabla AD_DB."
+      : "Sin resultados.";
+    ul.appendChild(d);
+  }
+  rows.forEach(r => {
+    const li = document.createElement("li");
+    if (r._id === currentId) li.className = "active";
+    const b = document.createElement("button");
+    const icao = document.createElement("span");
+    icao.className = "icao"; icao.textContent = r.ICAO || "—";
+    const meta = document.createElement("span");
+    meta.className = "meta";
+    meta.textContent = [r.IATA, r.FREQ].filter(Boolean).join(" · ");
+    b.append(icao, meta);
+    if (r.CAT) {
+      const bd = document.createElement("span");
+      bd.className = "badge"; bd.textContent = r.CAT;
+      b.appendChild(bd);
+    }
+    b.addEventListener("click", () => { if (r._id !== currentId) guard(() => openRecord(r._id)); else $("#app").classList.add("show-form"); });
+    li.appendChild(b);
+    ul.appendChild(li);
+  });
+  renderInfo();
+}
+
+function renderInfo() {
+  let last = "";
+  try { last = localStorage.getItem(BACKUP_KEY) || ""; } catch (e) {}
+  const n = db.length + (db.length === 1 ? " aeropuerto" : " aeropuertos");
+  $("#info").textContent = n + " · Último respaldo: " + (last ? fmtDate(last.slice(0, 10)) : "nunca");
+}
+
+/* ====================================================================
+   IMPORTAR
+   ==================================================================== */
+function parseCSV(text) {
+  text = text.replace(/^﻿/, "");
+  const first = text.split(/\r?\n/)[0] || "";
+  const counts = { ",": 0, ";": 0, "\t": 0 };
+  for (const ch of first) if (ch in counts) counts[ch]++;
+  const delim = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+
+  const rows = [];
+  let row = [], cur = "", inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { cur += '"'; i++; } else inQ = false;
+      } else cur += c;
+    } else if (c === '"' && cur === "") {
+      inQ = true;
+    } else if (c === delim) {
+      row.push(cur); cur = "";
+    } else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(cur); cur = "";
+      rows.push(row); row = [];
+    } else cur += c;
+  }
+  if (cur !== "" || row.length) { row.push(cur); rows.push(row); }
+  return rows.filter(r => r.some(v => String(v).trim() !== ""));
+}
+
+const KEY_BY_UPPER = {};
+FIELD_ORDER.forEach(k => { KEY_BY_UPPER[k.toUpperCase()] = k; });
+
+// Recibe registros ya con las claves canónicas y los combina por ICAO (el último gana).
+function mergeRecords(list) {
+  const byIcao = new Map();
+  let dupes = 0, skipped = 0;
+  list.forEach(r => {
+    const icao = String(r.ICAO || "").trim().toUpperCase();
+    if (!icao) { skipped++; return; }
+    r.ICAO = icao;
+    if (byIcao.has(icao)) { dupes++; Object.assign(byIcao.get(icao), r); }
+    else byIcao.set(icao, Object.assign({}, r));
+  });
+  let added = 0, updated = 0;
+  byIcao.forEach((r, icao) => {
+    if ("IATA" in r) r.IATA = String(r.IATA).trim().toUpperCase();
+    DATE_KEYS.forEach(k => { if (k in r) r[k] = normDate(r[k]); });
+    FIELD_ORDER.forEach(k => { if (k in r) r[k] = String(r[k] == null ? "" : r[k]).replace(/\r\n/g, "\n").trim(); });
+    const ex = db.find(x => x.ICAO === icao);
+    if (ex) { Object.assign(ex, r); updated++; }
+    else { db.push(Object.assign(blankRecord(), r, { _id: uid() })); added++; }
+  });
+  return { added, updated, dupes, skipped };
+}
+
+function importText(name, text) {
+  let list = [];
+  let unknown = [];
+  const isJson = /\.json$/i.test(name) || /^\s*[\[{]/.test(text);
+  if (isJson) {
+    let data;
+    try { data = JSON.parse(text); } catch (e) { alert("El archivo no se pudo leer como JSON."); return; }
+    const arr = Array.isArray(data) ? data : (data && Array.isArray(data.airports) ? data.airports : null);
+    if (!arr) { alert("No encontré la lista de aeropuertos dentro del archivo."); return; }
+    list = arr.map(o => {
+      const r = {};
+      Object.keys(o || {}).forEach(k => { const key = KEY_BY_UPPER[k.toUpperCase()]; if (key) r[key] = o[k]; });
+      return r;
+    });
+  } else {
+    const rows = parseCSV(text);
+    if (rows.length < 2) { alert("El archivo no tiene datos."); return; }
+    const cols = rows[0].map(h => {
+      const key = KEY_BY_UPPER[String(h).trim().toUpperCase()];
+      if (!key && String(h).trim()) unknown.push(String(h).trim());
+      return key || null;
+    });
+    if (!cols.includes("ICAO")) { alert("No encontré la columna ICAO en la primera fila del archivo."); return; }
+    list = rows.slice(1).map(row => {
+      const r = {};
+      cols.forEach((k, i) => { if (k) r[k] = row[i] == null ? "" : row[i]; });
+      return r;
+    });
+  }
+  const res = mergeRecords(list);
+  if (!saveDB()) return;
+  if (currentId && !db.some(r => r._id === currentId)) currentId = null;
+  renderList();
+  // Si el formulario abierto es de un registro actualizado, se refresca
+  if (currentId && !dirty) openRecord(currentId);
+  let msg = "Importados: " + res.added + " nuevos, " + res.updated + " actualizados.";
+  if (res.dupes) msg += " ICAO repetidos en el archivo: " + res.dupes + " (se usó la fila de más abajo).";
+  if (res.skipped) msg += " Filas sin ICAO omitidas: " + res.skipped + ".";
+  if (unknown.length) msg += " Columnas ignoradas: " + unknown.join(", ") + ".";
+  alert(msg);
+}
+
+/* ====================================================================
+   EXPORTAR
+   ==================================================================== */
+function toCSV() {
+  const q = v => {
+    v = String(v == null ? "" : v);
+    return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  };
+  const lines = [FIELD_ORDER.map(q).join(",")];
+  db.slice().sort((a, b) => (a.ICAO || "").localeCompare(b.ICAO || "")).forEach(r => {
+    lines.push(FIELD_ORDER.map(k => q(r[k])).join(","));
+  });
+  return "﻿" + lines.join("\r\n");
+}
+
+async function sendFile(name, mime, text) {
+  const file = new File([text], name, { type: mime });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: name }); return true; }
+    catch (e) { if (e && e.name === "AbortError") return false; }
+  }
+  const url = URL.createObjectURL(file);
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  return true;
+}
+
+function stamp() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+
+async function exportJSON() {
+  const clean = db.map(r => { const o = {}; FIELD_ORDER.forEach(k => o[k] = r[k] || ""); return o; });
+  const payload = { app: "aeropuertos", version: 1, exported: new Date().toISOString(), airports: clean };
+  const ok = await sendFile("aeropuertos_respaldo_" + stamp() + ".json", "application/json", JSON.stringify(payload, null, 2));
+  if (ok) {
+    try { localStorage.setItem(BACKUP_KEY, new Date().toISOString()); } catch (e) {}
+    renderInfo();
+  }
+}
+async function exportCSV() {
+  await sendFile("aeropuertos_" + stamp() + ".csv", "text/csv", toCSV());
+}
+
+/* ====================================================================
+   EVENTOS
+   ==================================================================== */
+buildForm();
+renderList();
+
+$("#q").addEventListener("input", renderList);
+$("#btnNew").addEventListener("click", () => guard(newRecord));
+$("#btnSave").addEventListener("click", saveForm);
+$("#btnDelete").addEventListener("click", deleteRecord);
+$("#btnBack").addEventListener("click", () => guard(() => {
+  $("#app").classList.remove("show-form");
+  currentId = null;
+  $("#main").classList.add("is-empty");
+  dirty = false;
+  renderList();
+}));
+
+$("#btnImport").addEventListener("click", () => $("#file").click());
+$("#file").addEventListener("change", e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => importText(f.name, String(reader.result));
+  reader.onerror = () => alert("No se pudo leer el archivo.");
+  reader.readAsText(f);
+  e.target.value = "";
+});
+
+const dlg = $("#dlgExport");
+$("#btnExport").addEventListener("click", () => {
+  if (db.length === 0) { toast("No hay aeropuertos para exportar"); return; }
+  dlg.showModal();
+});
+$("#expClose").addEventListener("click", () => dlg.close());
+$("#expJson").addEventListener("click", async () => { dlg.close(); await exportJSON(); });
+$("#expCsv").addEventListener("click", async () => { dlg.close(); await exportCSV(); });
+
+// Si gira el iPad o cambia el ancho, se reajusta la altura de los campos de texto
+window.addEventListener("resize", () => form.querySelectorAll("textarea").forEach(autosize));
+
+// Pide al navegador que no borre los datos guardados (si lo permite)
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+</script>
+</body>
+</html>
