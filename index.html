@@ -5,21 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Aeropuertos">
+<meta name="apple-mobile-web-app-title" content="Briefing">
 <meta name="theme-color" content="#0b2a4a">
-<title>Aeropuertos</title>
+<title>Briefing de vuelo</title>
 <style>
 :root{
   --bg:#f4f5f7; --panel:#ffffff; --ink:#14202e; --muted:#5b6b7c; --line:#d8dde3;
-  --accent:#0b57d0; --accent-ink:#ffffff; --danger:#b3261e; --field:#fbfcfd; --active:#e6eefc;
+  --accent:#0b57d0; --accent-ink:#ffffff; --danger:#b3261e; --field:#fbfcfd; --active:#e6eefc; --warn:#9a5b00;
 }
 @media (prefers-color-scheme:dark){
   :root{
     --bg:#0e1319; --panel:#161d26; --ink:#e8edf2; --muted:#93a1b0; --line:#2a3441;
-    --accent:#7aa7ff; --accent-ink:#0b1220; --danger:#ff8a80; --field:#111821; --active:#1d2b44;
+    --accent:#7aa7ff; --accent-ink:#0b1220; --danger:#ff8a80; --field:#111821; --active:#1d2b44; --warn:#f0b35a;
   }
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0;height:100%}
 body{
   font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
@@ -38,7 +39,9 @@ button:active{opacity:.75}
 .app{display:grid;grid-template-columns:340px 1fr;height:100vh;height:100dvh}
 .side{display:flex;flex-direction:column;background:var(--panel);border-right:1px solid var(--line);min-height:0}
 .side-head{padding:calc(12px + env(safe-area-inset-top)) 14px 10px;border-bottom:1px solid var(--line)}
-.side-head h1{margin:0 0 10px;font-size:22px}
+.tabs{display:flex;gap:4px;background:var(--bg);padding:4px;border-radius:12px;margin-bottom:10px}
+.tabs button{flex:1;border:0;background:transparent;min-height:40px;padding:0 6px;border-radius:9px;font-weight:600;font-size:15px;color:var(--muted)}
+.tabs button.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.18)}
 .side-head input[type=search]{
   width:100%;min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--field);margin-bottom:10px
 }
@@ -64,20 +67,33 @@ button:active{opacity:.75}
 .main-head h2{margin:0;font-size:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .spacer{flex:1}
 .back{display:none}
-#form{overflow:auto;padding:14px 16px calc(40px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch;flex:1}
-fieldset{border:1px solid var(--line);border-radius:12px;background:var(--panel);margin:0 0 16px;padding:10px 14px 14px}
+.formEl{overflow:auto;padding:14px 16px calc(40px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch;flex:1}
+fieldset{border:1px solid var(--line);border-radius:12px;background:var(--panel);margin:0 0 16px;padding:10px 14px 14px;min-width:0}
 legend{font-weight:700;padding:0 6px;color:var(--accent)}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px 14px}
-.fld{display:flex;flex-direction:column;gap:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px 14px;margin-bottom:12px}
+.grid:last-child{margin-bottom:0}
+.fld{display:flex;flex-direction:column;gap:4px;min-width:0}
 .fld.wide{grid-column:1 / -1}
 .fld span{font-size:13px;color:var(--muted);letter-spacing:.02em}
+.fld span.hint{color:var(--warn);font-size:12px}
 .fld input,.fld select,.fld textarea{
   width:100%;min-height:44px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--field)
 }
 .fld textarea{resize:vertical;line-height:1.35;overflow:hidden}
 .fld input:focus,.fld select:focus,.fld textarea:focus{outline:2px solid var(--accent);outline-offset:0}
+
+.info{border:1px dashed var(--line);border-radius:12px;background:var(--field);padding:10px 12px;margin:0 0 12px}
+.info-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.info-head b{flex:1;font-size:14px}
+.info-head button{min-height:36px;font-size:14px}
+.irow{padding:6px 0;border-top:1px solid var(--line)}
+.irow:first-of-type{border-top:0}
+.ik{display:block;font-size:12px;color:var(--muted)}
+.iv{white-space:pre-wrap;overflow-wrap:anywhere}
+.info .none{padding:4px 0}
+
 .empty{display:none;margin:auto;color:var(--muted);padding:30px;text-align:center}
-.main.is-empty #form{display:none}
+.main.is-empty .formEl{display:none}
 .main.is-empty .empty{display:block}
 .main.is-empty #btnSave,.main.is-empty #btnDelete{display:none}
 
@@ -108,12 +124,16 @@ dialog .stack{display:flex;flex-direction:column;gap:10px}
 <div class="app" id="app">
   <aside class="side">
     <div class="side-head">
-      <h1>Aeropuertos</h1>
-      <input id="q" type="search" placeholder="Buscar ICAO o IATA" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      <div class="tabs">
+        <button id="tabFlights" type="button">Vuelos</button>
+        <button id="tabAirports" type="button">Aeropuertos</button>
+        <button id="tabPlanes" type="button">Aviones</button>
+      </div>
+      <input id="q" type="search" autocomplete="off" autocapitalize="characters" spellcheck="false">
       <div class="row">
-        <button id="btnNew" class="primary">+ Nuevo</button>
-        <button id="btnImport">Importar</button>
-        <button id="btnExport">Exportar</button>
+        <button id="btnNew" type="button" class="primary">+ Nuevo</button>
+        <button id="btnImport" type="button">Importar</button>
+        <button id="btnExport" type="button">Exportar</button>
       </div>
     </div>
     <ul id="list" class="list"></ul>
@@ -122,26 +142,30 @@ dialog .stack{display:flex;flex-direction:column;gap:10px}
 
   <main class="main is-empty" id="main">
     <div class="main-head">
-      <button id="btnBack" class="ghost back">‹ Lista</button>
-      <h2 id="formTitle">Aeropuerto</h2>
+      <button id="btnBack" type="button" class="ghost back">‹ Lista</button>
+      <h2 id="formTitle">Vuelo</h2>
       <span class="spacer"></span>
-      <button id="btnDelete" class="danger">Eliminar</button>
-      <button id="btnSave" class="primary">Guardar</button>
+      <button id="btnDelete" type="button" class="danger">Eliminar</button>
+      <button id="btnSave" type="button" class="primary">Guardar</button>
     </div>
-    <form id="form" autocomplete="off" onsubmit="return false"></form>
-    <div class="empty" id="empty">Selecciona un aeropuerto de la lista o toca “+ Nuevo”.</div>
+    <form id="formFlights" class="formEl" autocomplete="off" onsubmit="return false" hidden></form>
+    <form id="formAirports" class="formEl" autocomplete="off" onsubmit="return false" hidden></form>
+    <form id="formPlanes" class="formEl" autocomplete="off" onsubmit="return false" hidden></form>
+    <div class="empty" id="empty"></div>
   </main>
 </div>
 
+<datalist id="dlAirports"></datalist>
+<datalist id="dlPlanes"></datalist>
 <input type="file" id="file" accept=".csv,.json,text/csv,application/json,text/plain" hidden>
 
 <dialog id="dlgExport">
   <h3>Exportar</h3>
-  <p>El respaldo (.json) guarda todo y sirve para pasar tus aeropuertos a otro dispositivo. La tabla (.csv) se abre en Excel o Google Sheets.</p>
+  <p>El respaldo (.json) guarda vuelos y aeropuertos juntos y sirve para pasarlos a otro dispositivo. La tabla (.csv) se abre en Excel o Google Sheets.</p>
   <div class="stack">
-    <button id="expJson" class="primary">Respaldo completo (.json)</button>
-    <button id="expCsv">Tabla (.csv)</button>
-    <button id="expClose" class="ghost">Cerrar</button>
+    <button id="expJson" type="button" class="primary">Respaldo completo (.json)</button>
+    <button id="expCsv" type="button"></button>
+    <button id="expClose" type="button" class="ghost">Cerrar</button>
   </div>
 </dialog>
 
@@ -152,114 +176,163 @@ dialog .stack{display:flex;flex-direction:column;gap:10px}
 
 /* ====================================================================
    CONFIGURACIÓN
-   Los nombres de la izquierda son los de las columnas de AD_DB (no los
-   cambies: sirven para importar). Lo que está a la derecha es el rótulo
+   Los nombres de la izquierda son los de las columnas de tus hojas
+   (no los cambies: sirven para importar). Lo de la derecha es el rótulo
    que se ve sobre cada campo: cámbialo a tu gusto.
    ==================================================================== */
-const LABELS = {
-  DATE: "DATE",
-  ICAO: "ICAO",
-  IATA: "IATA",
-  CAT: "CAT",
-  DATE_CCI: "DATE_CCI",
-  DATE_AOI: "DATE_AOI",
-  CCI_ARR: "CCI_ARR",
-  FREQ: "FREQ",
-  CCI_PARK: "CCI_PARK",
-  CCI_RETI: "CCI_RETI",
-  CCI_GNDOPS: "CCI_GNDOPS",
-  AOI_Taxirest: "AOI_Taxirest",
-  AOI_Ops: "AOI_Ops",
-  AOI_NAP: "AOI_NAP",
-  AOI_Speed_ARR: "AOI_Speed_ARR",
-  AOI_NAP_ARR: "AOI_NAP_ARR",
-  AOI_PROC_ARR: "AOI_PROC_ARR",
-  CRA_ARR: "CRA_ARR",
-  CCI_DEP: "CCI_DEP",
-  AOI_Speed_DEP: "AOI_Speed_DEP",
-  AOI_STARTUP: "AOI_STARTUP",
-  AOI_PROC_DEP: "AOI_PROC_DEP",
-  AOI_NAP_DEP: "AOI_NAP_DEP",
-  CRA_DEP: "CRA_DEP",
-  VARIOS_DEP: "VARIOS_DEP",
-  VARIOS_ARR: "VARIOS_ARR"
+
+// ---- Aeropuertos (columnas de AD_DB) ----
+const LABELS_A = {
+  DATE: "DATE", ICAO: "ICAO", IATA: "IATA", CAT: "CAT",
+  DATE_CCI: "DATE_CCI", DATE_AOI: "DATE_AOI", CCI_ARR: "CCI_ARR", FREQ: "FREQ",
+  CCI_PARK: "CCI_PARK", CCI_RETI: "CCI_RETI", CCI_GNDOPS: "CCI_GNDOPS",
+  AOI_Taxirest: "AOI_Taxirest", AOI_Ops: "AOI_Ops", AOI_NAP: "AOI_NAP",
+  AOI_Speed_ARR: "AOI_Speed_ARR", AOI_NAP_ARR: "AOI_NAP_ARR", AOI_PROC_ARR: "AOI_PROC_ARR",
+  CRA_ARR: "CRA_ARR", CCI_DEP: "CCI_DEP", AOI_Speed_DEP: "AOI_Speed_DEP",
+  AOI_STARTUP: "AOI_STARTUP", AOI_PROC_DEP: "AOI_PROC_DEP", AOI_NAP_DEP: "AOI_NAP_DEP",
+  CRA_DEP: "CRA_DEP", VARIOS_DEP: "VARIOS_DEP", VARIOS_ARR: "VARIOS_ARR"
 };
 
-// Orden de las columnas (igual que AD_DB). Se usa al exportar a CSV.
-const FIELD_ORDER = Object.keys(LABELS);
+// ---- Vuelos (columnas de FLIGHT_DB) ----
+const LABELS_F = {
+  DATE: "DATE", DEP: "DEP", DEP_UTC: "DEP UTC", ARR: "ARR", ARR_UTC: "ARR UTC",
+  EFB: "EFB", CHART: "CHART", STD: "STD", STA: "STA", STA_ALT: "STA (ALT)",
+  FLT_NUM: "FLT NUM", REG: "REG", OFP: "OFP", LAYOVER: "LAYOVER", NOT_COMMS: "NOTICES & COMS",
+  FO: "FO", PUR: "PUR", SUP: "CSV", CAPT_AUG: "CAPT (aug)", FO_AUG: "FO (aug)", MEL: "MEL",
+  DEP_NOTAMS: "NOTAMS", ARR_NOTAMS: "NOTAMS", ARR_WX: "WX", ARR_WX_TIME: "WX hora",
+  CRZ_SIGWX: "SIG_WX", CRZ_TURB: "TURB", CRZ_TROPO: "TROPO",
+  NOTES_DEP: "DEP NOTES", NOTES_ARR: "ARR NOTES", NOTES_CRZ: "CRZ NOTES",
+  TRIP: "TRIP", BLK: "BLK", FL: "FL",
+  ALT: "ALTERNATE (ICAO)", ALTNOTAMS: "NOTAMS", ALTWX: "WX"
+};
 
-// Cómo se agrupan en pantalla. t: text | date | select | area
-const SECTIONS = [
-  { title: "Identificación", fields: [
+// Matrículas iniciales (las de tu hoja AVIONES). Se cargan una sola vez; luego editas la lista en la pestaña Aviones.
+const PLANES = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(c => "A6-EX" + c);
+
+// ---- Aviones (hoja AVIONES: una columna con la matrícula) ----
+const LABELS_P = { REG: "Matrícula (REG)" };
+const P_ORDER = ["REG"];
+
+/* ---- Orden de columnas: igual que tus hojas ---- */
+const A_ORDER = Object.keys(LABELS_A);
+const F_ORDER = [
+  "DATE","DEP","DEP_UTC","ARR","ARR_UTC","EFB","CHART","STD","STA","STA_ALT","FLT_NUM","REG","OFP",
+  "LAYOVER","NOT_COMMS","FO","PUR","SUP","CAPT_AUG","FO_AUG","MEL","DEP_NOTAMS","ARR_NOTAMS","ARR_WX",
+  "ARR_WX_TIME","DEP_CAT","DEP_FRQ","DEP_CCI_DATE","CCI_DEP","AOI_Speed_DEP","AOI_STARTUP","AOI_PROC_DEP",
+  "AOI_NAP_DEP","CRA_DEP","VARIOS_DEP","ARR_CAT","CCI_DATE_ARR","CCI_ARR","ARR_FRQ","CCI_PARK","CCI_RETI",
+  "CCI_GNDOPS","AOI_Taxirest","AOI_Ops","AOI_NAP","AOI_Speed_ARR","AOI_NAP_ARR","AOI_PROC_ARR","CRA_ARR",
+  "VARIOS_ARR","CRZ_SIGWX","CRZ_TURB","CRZ_TROPO","NOTES_DEP","NOTES_ARR","NOTES_CRZ","TRIP","BLK","FL",
+  "ALT","ALTNOTAMS","ALTWX"
+];
+// En tu hoja FLIGHT_DB esta columna se llama "AOI_NAP _ARR" (con espacio)
+const F_HEADER = { AOI_NAP_ARR: "AOI_NAP _ARR" };
+
+/* ---- Datos del aeropuerto que se copian al vuelo (igual que GE_FLIGHT): [campo del vuelo, campo del aeropuerto] ---- */
+const SNAP_DEP = [
+  ["DEP_CAT","CAT"], ["DEP_FRQ","FREQ"], ["DEP_CCI_DATE","DATE_CCI"], ["CCI_DEP","CCI_DEP"],
+  ["AOI_Speed_DEP","AOI_Speed_DEP"], ["AOI_STARTUP","AOI_STARTUP"], ["AOI_PROC_DEP","AOI_PROC_DEP"],
+  ["AOI_NAP_DEP","AOI_NAP_DEP"], ["CRA_DEP","CRA_DEP"], ["VARIOS_DEP","VARIOS_DEP"]
+];
+const SNAP_ARR = [
+  ["ARR_CAT","CAT"], ["CCI_DATE_ARR","DATE_CCI"], ["CCI_ARR","CCI_ARR"], ["ARR_FRQ","FREQ"],
+  ["CCI_PARK","CCI_PARK"], ["CCI_RETI","CCI_RETI"], ["CCI_GNDOPS","CCI_GNDOPS"],
+  ["AOI_Taxirest","AOI_Taxirest"], ["AOI_Ops","AOI_Ops"], ["AOI_NAP","AOI_NAP"],
+  ["AOI_Speed_ARR","AOI_Speed_ARR"], ["AOI_NAP_ARR","AOI_NAP_ARR"], ["AOI_PROC_ARR","AOI_PROC_ARR"],
+  ["CRA_ARR","CRA_ARR"], ["VARIOS_ARR","VARIOS_ARR"]
+];
+const SNAP_KEYS = SNAP_DEP.concat(SNAP_ARR).map(p => p[0]);
+
+/* ---- Pantallas: cómo se agrupan los campos. t: text | date | select | area | icao | reg ---- */
+const SECTIONS_A = [
+  { title: "Identificación", items: [
     { k: "ICAO", t: "text", upper: true },
     { k: "IATA", t: "text", upper: true },
-    { k: "CAT", t: "select", opts: ["A", "B", "C"] },
+    { k: "CAT", t: "select", opts: ["CAT A", "CAT B", "CAT C"] },
     { k: "FREQ", t: "text" },
     { k: "DATE", t: "date" },
     { k: "DATE_CCI", t: "date" },
     { k: "DATE_AOI", t: "date" }
   ]},
-  { title: "General", fields: [
-    { k: "AOI_Taxirest", t: "area" },
-    { k: "AOI_Ops", t: "area" },
-    { k: "AOI_NAP", t: "area" }
+  { title: "General", items: [
+    { k: "AOI_Taxirest", t: "area" }, { k: "AOI_Ops", t: "area" }, { k: "AOI_NAP", t: "area" }
   ]},
-  { title: "Llegada (ARR)", fields: [
-    { k: "CCI_ARR", t: "area" },
-    { k: "CCI_PARK", t: "area" },
-    { k: "CCI_RETI", t: "area" },
-    { k: "CCI_GNDOPS", t: "area" },
-    { k: "AOI_Speed_ARR", t: "area" },
-    { k: "AOI_NAP_ARR", t: "area" },
-    { k: "AOI_PROC_ARR", t: "area" },
-    { k: "CRA_ARR", t: "area" },
-    { k: "VARIOS_ARR", t: "area" }
+  { title: "Llegada (ARR)", items: [
+    { k: "CCI_ARR", t: "area" }, { k: "CCI_PARK", t: "area" }, { k: "CCI_RETI", t: "area" },
+    { k: "CCI_GNDOPS", t: "area" }, { k: "AOI_Speed_ARR", t: "area" }, { k: "AOI_NAP_ARR", t: "area" },
+    { k: "AOI_PROC_ARR", t: "area" }, { k: "CRA_ARR", t: "area" }, { k: "VARIOS_ARR", t: "area" }
   ]},
-  { title: "Salida (DEP)", fields: [
-    { k: "CCI_DEP", t: "area" },
-    { k: "AOI_Speed_DEP", t: "area" },
-    { k: "AOI_STARTUP", t: "area" },
-    { k: "AOI_PROC_DEP", t: "area" },
-    { k: "AOI_NAP_DEP", t: "area" },
-    { k: "CRA_DEP", t: "area" },
+  { title: "Salida (DEP)", items: [
+    { k: "CCI_DEP", t: "area" }, { k: "AOI_Speed_DEP", t: "area" }, { k: "AOI_STARTUP", t: "area" },
+    { k: "AOI_PROC_DEP", t: "area" }, { k: "AOI_NAP_DEP", t: "area" }, { k: "CRA_DEP", t: "area" },
     { k: "VARIOS_DEP", t: "area" }
   ]}
 ];
 
-const DATE_KEYS = FIELD_ORDER.filter(k => k.startsWith("DATE"));
-const STORE_KEY = "ad_db_v1";
-const BACKUP_KEY = "ad_last_backup";
+const SECTIONS_P = [
+  { title: "Avión", items: [ { k: "REG", t: "text", upper: true } ] }
+];
 
-/* ====================================================================
-   DATOS
-   ==================================================================== */
-const $ = s => document.querySelector(s);
-let db = loadDB();
-let currentId = null;     // _id del registro abierto (null = nuevo)
-let dirty = false;
-
-function loadDB() {
-  try {
-    const raw = localStorage.getItem(STORE_KEY);
-    const arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) ? arr : [];
-  } catch (e) { return []; }
-}
-function saveDB() {
-  try {
-    localStorage.setItem(STORE_KEY, JSON.stringify(db));
-    return true;
-  } catch (e) {
-    alert("No se pudo guardar en este dispositivo (almacenamiento lleno o bloqueado). Haz un respaldo ahora con Exportar.");
-    return false;
-  }
-}
-function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
-function blankRecord() { const r = {}; FIELD_ORDER.forEach(k => r[k] = ""); return r; }
+const SECTIONS_F = [
+  { title: "Vuelo", items: [
+    { k: "DATE", t: "date" },
+    { k: "FLT_NUM", t: "text", upper: true },
+    { k: "REG", t: "reg", upper: true },
+    { k: "OFP", t: "text" }
+  ]},
+  { title: "Ruta y horarios", items: [
+    { k: "DEP", t: "icao", side: "DEP" },
+    { k: "DEP_UTC", t: "text" },
+    { k: "ARR", t: "icao", side: "ARR" },
+    { k: "ARR_UTC", t: "text" },
+    { k: "STD", t: "text" },
+    { k: "STA", t: "text" },
+    { k: "STA_ALT", t: "text" },
+    { k: "TRIP", t: "text" },
+    { k: "BLK", t: "text" },
+    { k: "FL", t: "text" }
+  ]},
+  { title: "Tripulación", items: [
+    { k: "FO", t: "text" }, { k: "PUR", t: "text" }, { k: "SUP", t: "text" },
+    { k: "CAPT_AUG", t: "text" }, { k: "FO_AUG", t: "text" }
+  ]},
+  { title: "Operación", items: [
+    { k: "EFB", t: "text" }, { k: "CHART", t: "text" }, { k: "LAYOVER", t: "text" },
+    { k: "NOT_COMMS", t: "area" }, { k: "MEL", t: "area" }
+  ]},
+  { title: "Salida (DEP)", items: [
+    { k: "DEP_NOTAMS", t: "area" },
+    { info: "DEP" },
+    { k: "NOTES_DEP", t: "area" }
+  ]},
+  { title: "Llegada (ARR)", items: [
+    { k: "ARR_NOTAMS", t: "area" },
+    { k: "ARR_WX_TIME", t: "text" },
+    { k: "ARR_WX", t: "area" },
+    { info: "ARR" },
+    { k: "NOTES_ARR", t: "area" }
+  ]},
+  { title: "Crucero (CRZ)", items: [
+    { k: "CRZ_SIGWX", t: "area" }, { k: "CRZ_TURB", t: "area" }, { k: "CRZ_TROPO", t: "area" },
+    { k: "NOTES_CRZ", t: "area" }
+  ]},
+  { title: "Alterno", items: [
+    { k: "ALT", t: "icao" },
+    { k: "ALTNOTAMS", t: "area" },
+    { k: "ALTWX", t: "area" }
+  ]}
+];
 
 /* ====================================================================
    UTILIDADES
    ==================================================================== */
+const $ = s => document.querySelector(s);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const normHeader = s => String(s == null ? "" : s).replace(/[\s_]/g, "").toUpperCase();
+const clean = v => String(v == null ? "" : v).replace(/\r\n/g, "\n").trim();
+const isISO = s => /^\d{4}-\d{2}-\d{2}$/.test(s);
+const pad2 = n => String(n).padStart(2, "0");
+const todayISO = () => { const d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); };
+
 let toastTimer;
 function toast(msg) {
   const t = $("#toast");
@@ -268,130 +341,410 @@ function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
 }
-function isISO(s) { return /^\d{4}-\d{2}-\d{2}$/.test(s); }
 
-// Convierte fechas como 25/10/2026 o 2026-10-25 a 2026-10-25. Si no la entiende, la deja igual.
+const MONTHS = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12,
+                 ene:1, abr:4, ago:8, dic:12 };
+
+// Entiende 2026-10-25, 25/10/2026, 8 Oct 2026 y Oct 8, 2026 -> 2026-10-25. Si no la entiende, la deja igual.
 function normDate(s) {
-  s = String(s == null ? "" : s).trim();
+  s = clean(s);
   if (!s) return "";
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
-  const m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})(?:\D.*)?$/);
+  const iso = (y, mo, d) => (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) ? y + "-" + pad2(mo) + "-" + pad2(d) : null;
+  let m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})(?:\D.*)?$/);
   if (m) {
-    let a = +m[1], b = +m[2];
-    const y = m[3];
-    let d = a, mo = b;                 // por defecto día/mes/año
-    if (a <= 12 && b > 12) { mo = a; d = b; }   // 10/25/2026 -> mes/día/año
-    if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
-      return y + "-" + String(mo).padStart(2, "0") + "-" + String(d).padStart(2, "0");
-    }
+    let a = +m[1], b = +m[2], d = a, mo = b;          // por defecto día/mes/año
+    if (a <= 12 && b > 12) { mo = a; d = b; }          // 10/25/2026 -> mes/día/año
+    return iso(m[3], mo, d) || s;
   }
+  m = s.match(/^(\d{1,2})[\s.\-\/]+([A-Za-zÀ-ÿ]{3,9})\.?,?[\s.\-\/]+(\d{4})$/);
+  if (m && MONTHS[m[2].slice(0, 3).toLowerCase()]) return iso(m[3], MONTHS[m[2].slice(0, 3).toLowerCase()], +m[1]) || s;
+  m = s.match(/^([A-Za-zÀ-ÿ]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})$/);
+  if (m && MONTHS[m[1].slice(0, 3).toLowerCase()]) return iso(m[3], MONTHS[m[1].slice(0, 3).toLowerCase()], +m[2]) || s;
   return s;
 }
-function fmtDate(iso) {
-  if (!isISO(iso)) return iso || "";
-  const [y, m, d] = iso.split("-");
+function fmtDate(v) {
+  if (!isISO(v)) return v || "";
+  const [y, m, d] = v.split("-");
   return d + "/" + m + "/" + y;
+}
+// "A" o "cat a" -> "CAT A" (así está escrito en tus hojas)
+function normCat(v) {
+  v = clean(v);
+  const m = v.match(/^(?:CAT\s*)?([ABC])$/i);
+  return m ? "CAT " + m[1].toUpperCase() : v;
+}
+// Las horas que Google Sheets exporta como fecha de 1899 se descartan
+function noEpoch(v) {
+  v = clean(v);
+  return /^\d{1,2}[\/.\-]\d{1,2}[\/.\-](1899|1900)$/.test(v) ? "" : v;
 }
 
 /* ====================================================================
-   FORMULARIO
+   DEFINICIÓN DE LAS DOS COLECCIONES
    ==================================================================== */
-const form = $("#form");
+function makeNorm(order, headers) {
+  const m = {};
+  order.forEach(k => { m[normHeader(k)] = k; if (headers && headers[k]) m[normHeader(headers[k])] = k; });
+  return m;
+}
+function loadArr(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) { return []; }
+}
+const emptyRec = order => { const r = {}; order.forEach(k => r[k] = ""); return r; };
 
+const FLIGHT_DATE_KEYS = ["DATE", "DEP_CCI_DATE", "CCI_DATE_ARR"];
+const FLIGHT_CLEAN_TIME = ["STA_ALT", "TRIP", "BLK", "STD", "STA", "ARR_WX_TIME"];
+
+const MODES = {
+  flights: {
+    id: "flights", store: "fl_db_v1", tab: "#tabFlights", form: $("#formFlights"),
+    order: F_ORDER, labels: LABELS_F, headers: F_HEADER, sections: SECTIONS_F,
+    dateKeys: FLIGHT_DATE_KEYS, norm: makeNorm(F_ORDER, F_HEADER),
+    db: loadArr("fl_db_v1"),
+    search: "Buscar vuelo, ICAO o matrícula", newTitle: "Nuevo vuelo", focusKey: "FLT_NUM",
+    emptyForm: "Selecciona un vuelo de la lista o toca “+ Nuevo”.",
+    emptyList: "Todavía no hay vuelos. Toca “+ Nuevo” o importa tu tabla FLIGHT_DB.",
+    csvName: "vuelos", csvLabel: "Tabla de vuelos (.csv)",
+    empty() { return emptyRec(F_ORDER); },
+    blank() { const r = emptyRec(F_ORDER); r.DATE = todayISO(); return r; },
+    key(r) {
+      if (!clean(r.FLT_NUM) && !clean(r.DEP) && !clean(r.DATE)) return "";
+      return [normDate(r.DATE), r.FLT_NUM, r.DEP, r.ARR].map(x => clean(x).toUpperCase()).join("|");
+    },
+    validate(r) { return (r.FLT_NUM || r.DEP) ? null : "Escribe al menos el número de vuelo o el DEP"; },
+    dupMsg(r) { return "Ya existe un vuelo " + (r.FLT_NUM || "") + " " + (r.DEP || "") + "-" + (r.ARR || "") + " con esa fecha. ¿Reemplazarlo con lo que está en pantalla?"; },
+    titleOf(r) { return [r.FLT_NUM || "Vuelo", (r.DEP || r.ARR) ? (r.DEP || "—") + " → " + (r.ARR || "—") : ""].filter(Boolean).join(" · "); },
+    row(r) {
+      return { main: r.FLT_NUM || "—", meta: [(r.DEP || "—") + "→" + (r.ARR || "—"), fmtDate(isISO(r.DATE) ? r.DATE : normDate(r.DATE))].filter(Boolean).join(" · "),
+               badge: r.REG ? r.REG.slice(-3) : "" };
+    },
+    hay(r) { return [r.FLT_NUM, r.DEP, r.ARR, r.REG, r.ALT].join(" ").toUpperCase(); },
+    listSort(a, b) {
+      const da = isISO(a.DATE) ? a.DATE : "", dbb = isISO(b.DATE) ? b.DATE : "";
+      return dbb.localeCompare(da) || (b._t || 0) - (a._t || 0);
+    },
+    exportSort(a, b) { return this.listSort(b, a); },
+    clean(r) {
+      F_ORDER.forEach(k => { if (k in r) r[k] = clean(r[k]); });
+      FLIGHT_DATE_KEYS.forEach(k => { if (k in r) r[k] = normDate(r[k]); });
+      FLIGHT_CLEAN_TIME.forEach(k => { if (k in r) r[k] = noEpoch(r[k]); });
+      ["FLT_NUM", "REG", "DEP", "ARR", "ALT"].forEach(k => { if (k in r) r[k] = r[k].toUpperCase(); });
+      ["DEP_CAT", "ARR_CAT"].forEach(k => { if (k in r) r[k] = normCat(r[k]); });
+    }
+  },
+  airports: {
+    id: "airports", store: "ad_db_v1", tab: "#tabAirports", form: $("#formAirports"),
+    order: A_ORDER, labels: LABELS_A, headers: {}, sections: SECTIONS_A,
+    dateKeys: A_ORDER.filter(k => k.startsWith("DATE")), norm: makeNorm(A_ORDER, {}),
+    db: loadArr("ad_db_v1"),
+    search: "Buscar ICAO o IATA", newTitle: "Nuevo aeropuerto", focusKey: "ICAO",
+    emptyForm: "Selecciona un aeropuerto de la lista o toca “+ Nuevo”.",
+    emptyList: "Todavía no hay aeropuertos. Toca “+ Nuevo” o importa tu tabla AD_DB.",
+    csvName: "aeropuertos", csvLabel: "Tabla de aeropuertos (.csv)",
+    empty() { return emptyRec(A_ORDER); },
+    blank() { return emptyRec(A_ORDER); },
+    key(r) { return clean(r.ICAO).toUpperCase(); },
+    validate(r) { return r.ICAO ? null : "Falta el ICAO"; },
+    dupMsg(r) { return "Ya existe " + r.ICAO + " en tu lista. ¿Reemplazarlo con lo que está en pantalla?"; },
+    titleOf(r) { return r.ICAO || "Aeropuerto"; },
+    row(r) { return { main: r.ICAO || "—", meta: [r.IATA, r.FREQ].filter(Boolean).join(" · "), badge: r.CAT ? r.CAT.replace(/^CAT\s*/i, "") : "" }; },
+    hay(r) { return [r.ICAO, r.IATA].join(" ").toUpperCase(); },
+    listSort(a, b) { return (a.ICAO || "").localeCompare(b.ICAO || ""); },
+    exportSort(a, b) { return this.listSort(a, b); },
+    clean(r) {
+      A_ORDER.forEach(k => { if (k in r) r[k] = clean(r[k]); });
+      this.dateKeys.forEach(k => { if (k in r) r[k] = normDate(r[k]); });
+      ["ICAO", "IATA"].forEach(k => { if (k in r) r[k] = r[k].toUpperCase(); });
+      if ("CAT" in r) r.CAT = normCat(r.CAT);
+    }
+  }
+};
+
+MODES.planes = {
+  id: "planes", store: "ac_db_v1", tab: "#tabPlanes", form: $("#formPlanes"),
+  order: P_ORDER, labels: LABELS_P, headers: {}, sections: SECTIONS_P,
+  dateKeys: [], norm: makeNorm(P_ORDER, {}),
+  db: [],
+  search: "Buscar matrícula", newTitle: "Nuevo avión", focusKey: "REG",
+  emptyForm: "Selecciona un avión de la lista o toca “+ Nuevo”.",
+  emptyList: "Todavía no hay aviones. Toca “+ Nuevo” o importa tu hoja AVIONES.",
+  csvName: "aviones", csvLabel: "Lista de aviones (.csv)",
+  empty() { return emptyRec(P_ORDER); },
+  blank() { return emptyRec(P_ORDER); },
+  key(r) { return clean(r.REG).toUpperCase(); },
+  validate(r) { return r.REG ? null : "Falta la matrícula"; },
+  dupMsg(r) { return "Ya existe " + r.REG + " en tu lista. ¿Reemplazarlo?"; },
+  titleOf(r) { return r.REG || "Avión"; },
+  row(r) { return { main: r.REG || "—", meta: "", badge: "" }; },
+  hay(r) { return (r.REG || "").toUpperCase(); },
+  listSort(a, b) { return (a.REG || "").localeCompare(b.REG || ""); },
+  exportSort(a, b) { return this.listSort(a, b); },
+  clean(r) { if ("REG" in r) r.REG = clean(r.REG).toUpperCase(); }
+};
+// Primera vez: se cargan las matrículas de tu hoja AVIONES
+(function(){
+  let raw = null;
+  try { raw = localStorage.getItem("ac_db_v1"); } catch (e) {}
+  if (raw === null) {
+    MODES.planes.db = PLANES.map(r => ({ _id: uid(), _t: 0, REG: r }));
+    try { localStorage.setItem("ac_db_v1", JSON.stringify(MODES.planes.db)); } catch (e) {}
+  } else MODES.planes.db = loadArr("ac_db_v1");
+})();
+
+let mode = "flights";
+try { const m = localStorage.getItem("ui_mode"); if (m && MODES[m]) mode = m; } catch (e) {}
+const C = () => MODES[mode];
+let currentId = null;
+let dirty = false;
+
+// Datos del aeropuerto copiados al vuelo que está en pantalla
+let snap = {};
+let snapSrc = { DEP: "", ARR: "" };
+const infoUI = {};     // {DEP:{ttl,body}, ARR:{...}}
+const hintUI = {};     // {DEP:span, ARR:span, ALT:span}
+
+function saveDB(cfg) {
+  try { localStorage.setItem(cfg.store, JSON.stringify(cfg.db)); return true; }
+  catch (e) {
+    alert("No se pudo guardar en este dispositivo (almacenamiento lleno o bloqueado). Haz un respaldo ahora con Exportar.");
+    return false;
+  }
+}
+
+/* ====================================================================
+   LISTAS DESPLEGABLES (ICAO y matrículas)
+   ==================================================================== */
+function refreshLists() {
+  const dlA = $("#dlAirports");
+  dlA.textContent = "";
+  MODES.airports.db.map(a => a.ICAO).filter(Boolean).sort().forEach(i => {
+    const o = document.createElement("option"); o.value = i; dlA.appendChild(o);
+  });
+  const regs = new Set();
+  MODES.planes.db.forEach(p => { if (p.REG) regs.add(p.REG); });
+  MODES.flights.db.forEach(f => { if (f.REG) regs.add(f.REG); });
+  const dlP = $("#dlPlanes");
+  dlP.textContent = "";
+  Array.from(regs).sort().forEach(r => { const o = document.createElement("option"); o.value = r; dlP.appendChild(o); });
+}
+const findAirport = icao => icao ? MODES.airports.db.find(a => a.ICAO === icao) : null;
+
+/* ====================================================================
+   DATOS DEL AEROPUERTO DENTRO DEL VUELO
+   ==================================================================== */
+function renderInfo(side) {
+  const ui = infoUI[side];
+  if (!ui) return;
+  const F = MODES.flights;
+  const icao = F.form.elements[side].value;
+  ui.ttl.textContent = "Datos del aeropuerto (" + (side === "DEP" ? "salida" : "llegada") + ") · " + (icao || "—");
+  ui.body.textContent = "";
+  let shown = 0;
+  (side === "DEP" ? SNAP_DEP : SNAP_ARR).forEach(([fk, ak]) => {
+    const v = snap[fk];
+    if (!v) return;
+    const row = document.createElement("div"); row.className = "irow";
+    const k = document.createElement("span"); k.className = "ik"; k.textContent = LABELS_A[ak] || ak;
+    const val = document.createElement("div"); val.className = "iv";
+    val.textContent = ak.startsWith("DATE") ? fmtDate(v) : v;
+    row.append(k, val); ui.body.appendChild(row); shown++;
+  });
+  if (!shown) {
+    const p = document.createElement("div"); p.className = "none";
+    p.textContent = icao
+      ? (findAirport(icao) ? "Este aeropuerto no tiene datos guardados." : "Ese ICAO no está en tu lista de Aeropuertos.")
+      : "Escribe el ICAO arriba para traer los datos.";
+    ui.body.appendChild(p);
+  }
+}
+
+function icaoHint(k) {
+  const el = hintUI[k];
+  if (!el) return;
+  const v = MODES.flights.form.elements[k].value;
+  el.textContent = (v && !findAirport(v)) ? "No está en tu lista de Aeropuertos" : "";
+}
+
+function setSide(side) {
+  const form = MODES.flights.form;
+  const icao = clean(form.elements[side].value).toUpperCase();
+  form.elements[side].value = icao;
+  const ap = findAirport(icao);
+  (side === "DEP" ? SNAP_DEP : SNAP_ARR).forEach(([fk, ak]) => {
+    let v = ap ? clean(ap[ak]) : "";
+    if (v && ak.startsWith("DATE")) v = normDate(v);
+    if (v && ak === "CAT") v = normCat(v);
+    snap[fk] = v;
+  });
+  snapSrc[side] = icao;
+  renderInfo(side);
+  icaoHint(side);
+  return !!ap;
+}
+
+/* ====================================================================
+   FORMULARIOS
+   ==================================================================== */
 function autosize(el) {
   el.style.height = "auto";
   el.style.height = Math.max(el.scrollHeight + 2, 46) + "px";
 }
 
-function buildForm() {
-  SECTIONS.forEach(sec => {
+function makeField(cfg, f) {
+  const wrap = document.createElement("label");
+  wrap.className = "fld" + (f.t === "area" ? " wide" : "");
+  const span = document.createElement("span");
+  span.textContent = cfg.labels[f.k] || f.k;
+  let el;
+  if (f.t === "select") {
+    el = document.createElement("select");
+    [""].concat(f.opts).forEach(o => {
+      const op = document.createElement("option");
+      op.value = o; op.textContent = o || "—";
+      el.appendChild(op);
+    });
+  } else if (f.t === "area") {
+    el = document.createElement("textarea");
+    el.rows = 2;
+    el.addEventListener("input", () => autosize(el));
+  } else {
+    el = document.createElement("input");
+    el.type = f.t === "date" ? "date" : "text";
+  }
+  el.name = f.k;
+  if (f.t === "text" || f.t === "icao" || f.t === "reg") {
+    el.setAttribute("autocomplete", "off");
+    el.setAttribute("autocorrect", "off");
+    el.setAttribute("spellcheck", "false");
+    const up = f.upper || f.t === "icao" || f.t === "reg";
+    el.setAttribute("autocapitalize", up ? "characters" : "none");
+    if (up) el.addEventListener("input", () => {
+      const p = el.selectionStart;
+      el.value = el.value.toUpperCase();
+      try { el.setSelectionRange(p, p); } catch (e) {}
+    });
+  }
+  if (f.t === "icao") el.setAttribute("list", "dlAirports");
+  if (f.t === "reg") el.setAttribute("list", "dlPlanes");
+  el.addEventListener("input", () => { dirty = true; });
+  el.addEventListener("change", () => { dirty = true; });
+  wrap.append(span, el);
+  if (f.t === "icao") {
+    const hint = document.createElement("span"); hint.className = "hint";
+    wrap.appendChild(hint);
+    hintUI[f.k] = hint;
+    el.addEventListener("change", () => {
+      el.value = clean(el.value).toUpperCase();
+      if (f.side) setSide(f.side); else icaoHint(f.k);
+    });
+  }
+  return wrap;
+}
+
+function makeInfoBox(side) {
+  const box = document.createElement("div"); box.className = "info";
+  const head = document.createElement("div"); head.className = "info-head";
+  const ttl = document.createElement("b");
+  const btn = document.createElement("button"); btn.type = "button"; btn.textContent = "Actualizar";
+  btn.addEventListener("click", () => {
+    const ok = setSide(side);
+    dirty = true;
+    toast(ok ? "Datos actualizados desde Aeropuertos" : "Ese ICAO no está en tu lista de Aeropuertos");
+  });
+  head.append(ttl, btn);
+  const body = document.createElement("div");
+  box.append(head, body);
+  infoUI[side] = { ttl, body };
+  return box;
+}
+
+function buildForm(cfg) {
+  cfg.sections.forEach(sec => {
     const fs = document.createElement("fieldset");
     const lg = document.createElement("legend");
     lg.textContent = sec.title;
     fs.appendChild(lg);
-    const grid = document.createElement("div");
-    grid.className = "grid";
-
-    sec.fields.forEach(f => {
-      const wrap = document.createElement("label");
-      wrap.className = "fld" + (f.t === "area" ? " wide" : "");
-      const span = document.createElement("span");
-      span.textContent = LABELS[f.k] || f.k;
-      let el;
-      if (f.t === "select") {
-        el = document.createElement("select");
-        [""].concat(f.opts).forEach(o => {
-          const op = document.createElement("option");
-          op.value = o; op.textContent = o || "—";
-          el.appendChild(op);
-        });
-      } else if (f.t === "area") {
-        el = document.createElement("textarea");
-        el.rows = 2;
-        el.addEventListener("input", () => autosize(el));
-      } else {
-        el = document.createElement("input");
-        el.type = f.t === "date" ? "date" : "text";
-      }
-      el.name = f.k;
-      if (f.t !== "select" && f.t !== "date") {
-        el.setAttribute("autocomplete", "off");
-        el.setAttribute("autocorrect", "off");
-        el.setAttribute("spellcheck", "false");
-        el.setAttribute("autocapitalize", f.upper ? "characters" : "none");
-      }
-      if (f.upper) el.addEventListener("input", () => {
-        const p = el.selectionStart;
-        el.value = el.value.toUpperCase();
-        try { el.setSelectionRange(p, p); } catch (e) {}
-      });
-      el.addEventListener("input", () => { dirty = true; });
-      el.addEventListener("change", () => { dirty = true; });
-      wrap.append(span, el);
-      grid.appendChild(wrap);
+    let grid = null;
+    sec.items.forEach(it => {
+      if (it.info) { grid = null; fs.appendChild(makeInfoBox(it.info)); return; }
+      if (!grid) { grid = document.createElement("div"); grid.className = "grid"; fs.appendChild(grid); }
+      grid.appendChild(makeField(cfg, it));
     });
-    fs.appendChild(grid);
-    form.appendChild(fs);
+    cfg.form.appendChild(fs);
   });
 }
 
-function fillForm(rec) {
-  FIELD_ORDER.forEach(k => {
+function fillForm(cfg, rec) {
+  const form = cfg.form;
+  cfg.order.forEach(k => {
+    const raw = rec[k] == null ? "" : String(rec[k]);
+    if (cfg.id === "flights" && SNAP_KEYS.includes(k)) {
+      let v = raw;
+      if (k.endsWith("DATE") || k.startsWith("CCI_DATE")) v = normDate(v);
+      if (k === "DEP_CAT" || k === "ARR_CAT") v = normCat(v);
+      snap[k] = v;
+      return;
+    }
     const el = form.elements[k];
     if (!el) return;
-    const v = rec[k] == null ? "" : String(rec[k]);
+    let v = raw;
+    if (cfg.dateKeys.includes(k)) v = normDate(v);
+    if (k === "CAT" && cfg.id === "airports") v = normCat(v);
+    if (cfg.id === "flights" && FLIGHT_CLEAN_TIME.includes(k)) v = noEpoch(v);
     if (el.type === "date") {
       el.value = isISO(v) ? v : "";
-      el.dataset.raw = isISO(v) ? "" : v;   // si venía en otro formato, se conserva al guardar
+      el.dataset.raw = isISO(v) ? "" : v;      // si venía en un formato raro, se conserva al guardar
     } else {
+      if (el.tagName === "SELECT" && v && !Array.from(el.options).some(o => o.value === v)) {
+        const op = document.createElement("option"); op.value = v; op.textContent = v; el.appendChild(op);
+      }
       el.value = v;
     }
   });
+  if (cfg.id === "flights") {
+    snapSrc = { DEP: clean(rec.DEP).toUpperCase(), ARR: clean(rec.ARR).toUpperCase() };
+    renderInfo("DEP"); renderInfo("ARR");
+    ["DEP", "ARR", "ALT"].forEach(icaoHint);
+  }
   form.querySelectorAll("textarea").forEach(autosize);
 }
 
-function collectForm() {
+function collectForm(cfg) {
+  const form = cfg.form;
+  if (cfg.id === "flights") {
+    // Si cambió el ICAO y todavía no se refrescó el aeropuerto, se hace ahora
+    ["DEP", "ARR"].forEach(side => {
+      const v = clean(form.elements[side].value).toUpperCase();
+      if (v !== snapSrc[side]) setSide(side);
+    });
+  }
   const rec = {};
-  FIELD_ORDER.forEach(k => {
+  cfg.order.forEach(k => {
+    if (cfg.id === "flights" && SNAP_KEYS.includes(k)) { rec[k] = snap[k] || ""; return; }
     const el = form.elements[k];
     let v = el ? el.value : "";
     if (el && el.type === "date" && v === "" && el.dataset.raw) v = el.dataset.raw;
-    v = String(v).replace(/\r\n/g, "\n").trim();
-    if (k === "ICAO" || k === "IATA") v = v.toUpperCase();
-    rec[k] = v;
+    rec[k] = clean(v);
   });
+  cfg.clean(rec);
   return rec;
 }
 
 function showForm(rec, title) {
+  const cfg = C();
   // Primero se muestra el formulario y luego se llena, para que los campos de texto midan bien su altura
   $("#main").classList.remove("is-empty");
   $("#app").classList.add("show-form");
-  fillForm(rec);
+  fillForm(cfg, rec);
   $("#formTitle").textContent = title;
   $("#btnDelete").style.display = currentId ? "" : "none";
   dirty = false;
-  form.scrollTop = 0;
+  cfg.form.scrollTop = 0;
   renderList();
 }
 
@@ -401,52 +754,64 @@ function guard(fn) {
 }
 
 function openRecord(id) {
-  const rec = db.find(r => r._id === id);
+  const cfg = C();
+  const rec = cfg.db.find(r => r._id === id);
   if (!rec) return;
   currentId = id;
-  showForm(rec, rec.ICAO || "Aeropuerto");
+  showForm(rec, cfg.titleOf(rec));
 }
 function newRecord() {
+  const cfg = C();
   currentId = null;
-  showForm(blankRecord(), "Nuevo aeropuerto");
-  const el = form.elements["ICAO"];
+  showForm(cfg.blank(), cfg.newTitle);
+  const el = cfg.form.elements[cfg.focusKey];
   if (el) el.focus();
 }
 
 function saveForm() {
-  const rec = collectForm();
-  if (!rec.ICAO) { toast("Falta el ICAO"); form.elements["ICAO"].focus(); return; }
-
-  const other = db.find(r => r.ICAO === rec.ICAO && r._id !== currentId);
-  if (other) {
-    if (!confirm("Ya existe " + rec.ICAO + " en tu lista. ¿Reemplazarlo con lo que está en pantalla?")) return;
-    db = db.filter(r => r._id !== other._id);
+  const cfg = C();
+  const rec = collectForm(cfg);
+  const err = cfg.validate(rec);
+  if (err) {
+    toast(err);
+    const el = cfg.form.elements[cfg.focusKey];
+    if (el) el.focus();
+    return;
   }
-  if (currentId) {
-    const i = db.findIndex(r => r._id === currentId);
-    db[i] = Object.assign({ _id: currentId }, rec);
+  const k = cfg.key(rec);
+  const other = cfg.db.find(r => cfg.key(r) === k && r._id !== currentId);
+  if (other) {
+    if (!confirm(cfg.dupMsg(rec))) return;
+    cfg.db = cfg.db.filter(r => r._id !== other._id);
+  }
+  const i = currentId ? cfg.db.findIndex(r => r._id === currentId) : -1;
+  if (i >= 0) {
+    cfg.db[i] = Object.assign({ _id: currentId, _t: cfg.db[i]._t || Date.now() }, rec);
   } else {
     currentId = uid();
-    db.push(Object.assign({ _id: currentId }, rec));
+    cfg.db.push(Object.assign({ _id: currentId, _t: Date.now() }, rec));
   }
-  if (!saveDB()) return;
+  if (!saveDB(cfg)) return;
   dirty = false;
-  $("#formTitle").textContent = rec.ICAO;
+  $("#formTitle").textContent = cfg.titleOf(rec);
   $("#btnDelete").style.display = "";
+  refreshLists();
   renderList();
   toast("Guardado");
 }
 
 function deleteRecord() {
+  const cfg = C();
   if (!currentId) return;
-  const rec = db.find(r => r._id === currentId);
-  if (!confirm("¿Eliminar " + (rec ? rec.ICAO : "este aeropuerto") + "? No se puede deshacer.")) return;
-  db = db.filter(r => r._id !== currentId);
-  saveDB();
+  const rec = cfg.db.find(r => r._id === currentId);
+  if (!confirm("¿Eliminar " + (rec ? cfg.titleOf(rec) : "este registro") + "? No se puede deshacer.")) return;
+  cfg.db = cfg.db.filter(r => r._id !== currentId);
+  saveDB(cfg);
   currentId = null;
   dirty = false;
   $("#main").classList.add("is-empty");
   $("#app").classList.remove("show-form");
+  refreshLists();
   renderList();
   toast("Eliminado");
 }
@@ -455,48 +820,61 @@ function deleteRecord() {
    LISTA
    ==================================================================== */
 function renderList() {
+  const cfg = C();
   const q = $("#q").value.trim().toUpperCase();
   const ul = $("#list");
   ul.textContent = "";
-  const rows = db
-    .filter(r => !q || (r.ICAO || "").includes(q) || (r.IATA || "").includes(q))
-    .sort((a, b) => (a.ICAO || "").localeCompare(b.ICAO || ""));
-
+  const rows = cfg.db.filter(r => !q || cfg.hay(r).includes(q)).sort((a, b) => cfg.listSort(a, b));
   if (rows.length === 0) {
     const d = document.createElement("div");
     d.className = "none";
-    d.textContent = db.length === 0
-      ? "Todavía no hay aeropuertos. Toca “+ Nuevo” o importa tu tabla AD_DB."
-      : "Sin resultados.";
+    d.textContent = cfg.db.length === 0 ? cfg.emptyList : "Sin resultados.";
     ul.appendChild(d);
   }
   rows.forEach(r => {
+    const info = cfg.row(r);
     const li = document.createElement("li");
     if (r._id === currentId) li.className = "active";
     const b = document.createElement("button");
-    const icao = document.createElement("span");
-    icao.className = "icao"; icao.textContent = r.ICAO || "—";
-    const meta = document.createElement("span");
-    meta.className = "meta";
-    meta.textContent = [r.IATA, r.FREQ].filter(Boolean).join(" · ");
-    b.append(icao, meta);
-    if (r.CAT) {
-      const bd = document.createElement("span");
-      bd.className = "badge"; bd.textContent = r.CAT;
-      b.appendChild(bd);
-    }
-    b.addEventListener("click", () => { if (r._id !== currentId) guard(() => openRecord(r._id)); else $("#app").classList.add("show-form"); });
+    b.type = "button";
+    const main = document.createElement("span"); main.className = "icao"; main.textContent = info.main;
+    const meta = document.createElement("span"); meta.className = "meta"; meta.textContent = info.meta;
+    b.append(main, meta);
+    if (info.badge) { const bd = document.createElement("span"); bd.className = "badge"; bd.textContent = info.badge; b.appendChild(bd); }
+    b.addEventListener("click", () => {
+      if (r._id !== currentId) guard(() => openRecord(r._id)); else $("#app").classList.add("show-form");
+    });
     li.appendChild(b);
     ul.appendChild(li);
   });
-  renderInfo();
+  renderFoot();
 }
 
-function renderInfo() {
+function renderFoot() {
   let last = "";
-  try { last = localStorage.getItem(BACKUP_KEY) || ""; } catch (e) {}
-  const n = db.length + (db.length === 1 ? " aeropuerto" : " aeropuertos");
-  $("#info").textContent = n + " · Último respaldo: " + (last ? fmtDate(last.slice(0, 10)) : "nunca");
+  try { last = localStorage.getItem("ad_last_backup") || ""; } catch (e) {}
+  const nf = MODES.flights.db.length, na = MODES.airports.db.length, np = MODES.planes.db.length;
+  $("#info").textContent = nf + (nf === 1 ? " vuelo" : " vuelos") + " · " + na + (na === 1 ? " aeropuerto" : " aeropuertos") +
+    " · " + np + (np === 1 ? " avión" : " aviones") + " · Respaldo: " + (last ? fmtDate(last.slice(0, 10)) : "nunca");
+}
+
+function setMode(m) {
+  mode = m;
+  try { localStorage.setItem("ui_mode", m); } catch (e) {}
+  Object.values(MODES).forEach(c => {
+    c.form.hidden = c !== MODES[m];
+    $(c.tab).classList.toggle("on", c === MODES[m]);
+  });
+  const cfg = C();
+  $("#q").placeholder = cfg.search;
+  $("#q").value = "";
+  $("#empty").textContent = cfg.emptyForm;
+  $("#formTitle").textContent = cfg.newTitle;
+  currentId = null;
+  dirty = false;
+  $("#main").classList.add("is-empty");
+  $("#app").classList.remove("show-form");
+  renderList();
 }
 
 /* ====================================================================
@@ -508,15 +886,13 @@ function parseCSV(text) {
   const counts = { ",": 0, ";": 0, "\t": 0 };
   for (const ch of first) if (ch in counts) counts[ch]++;
   const delim = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
-
   const rows = [];
   let row = [], cur = "", inQ = false;
   for (let i = 0; i < text.length; i++) {
     const c = text[i];
     if (inQ) {
-      if (c === '"') {
-        if (text[i + 1] === '"') { cur += '"'; i++; } else inQ = false;
-      } else cur += c;
+      if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else inQ = false; }
+      else cur += c;
     } else if (c === '"' && cur === "") {
       inQ = true;
     } else if (c === delim) {
@@ -531,86 +907,93 @@ function parseCSV(text) {
   return rows.filter(r => r.some(v => String(v).trim() !== ""));
 }
 
-const KEY_BY_UPPER = {};
-FIELD_ORDER.forEach(k => { KEY_BY_UPPER[k.toUpperCase()] = k; });
+// Decide si una lista de nombres de columna es de aeropuertos o de vuelos
+function detectKind(names) {
+  const s = new Set(names.map(normHeader));
+  if (s.has("ICAO")) return "airports";
+  if (s.has("REG") && s.size <= 2 && !s.has("FLTNUM") && !s.has("DEP")) return "planes";
+  if (s.has("FLTNUM") || (s.has("DEP") && s.has("ARR"))) return "flights";
+  return null;
+}
 
-// Recibe registros ya con las claves canónicas y los combina por ICAO (el último gana).
-function mergeRecords(list) {
-  const byIcao = new Map();
+// Combina registros con los que ya hay: si la clave existe se actualiza, si no se agrega (el último del archivo gana)
+function mergeInto(cfg, list) {
+  const byKey = new Map();
   let dupes = 0, skipped = 0;
-  list.forEach(r => {
-    const icao = String(r.ICAO || "").trim().toUpperCase();
-    if (!icao) { skipped++; return; }
-    r.ICAO = icao;
-    if (byIcao.has(icao)) { dupes++; Object.assign(byIcao.get(icao), r); }
-    else byIcao.set(icao, Object.assign({}, r));
+  list.forEach(obj => {
+    const r = {};
+    Object.keys(obj || {}).forEach(h => { const k = cfg.norm[normHeader(h)]; if (k) r[k] = obj[h]; });
+    cfg.clean(r);
+    const k = cfg.key(r);
+    if (!k) { skipped++; return; }
+    if (byKey.has(k)) { dupes++; Object.assign(byKey.get(k), r); } else byKey.set(k, r);
   });
   let added = 0, updated = 0;
-  byIcao.forEach((r, icao) => {
-    if ("IATA" in r) r.IATA = String(r.IATA).trim().toUpperCase();
-    DATE_KEYS.forEach(k => { if (k in r) r[k] = normDate(r[k]); });
-    FIELD_ORDER.forEach(k => { if (k in r) r[k] = String(r[k] == null ? "" : r[k]).replace(/\r\n/g, "\n").trim(); });
-    const ex = db.find(x => x.ICAO === icao);
+  byKey.forEach((r, k) => {
+    const ex = cfg.db.find(x => cfg.key(x) === k);
     if (ex) { Object.assign(ex, r); updated++; }
-    else { db.push(Object.assign(blankRecord(), r, { _id: uid() })); added++; }
+    else { cfg.db.push(Object.assign(cfg.empty(), r, { _id: uid(), _t: Date.now() })); added++; }
   });
   return { added, updated, dupes, skipped };
 }
 
 function importText(name, text) {
-  let list = [];
-  let unknown = [];
+  const jobs = [];       // {cfg, list}
+  const unknown = new Set();
   const isJson = /\.json$/i.test(name) || /^\s*[\[{]/.test(text);
   if (isJson) {
     let data;
     try { data = JSON.parse(text); } catch (e) { alert("El archivo no se pudo leer como JSON."); return; }
-    const arr = Array.isArray(data) ? data : (data && Array.isArray(data.airports) ? data.airports : null);
-    if (!arr) { alert("No encontré la lista de aeropuertos dentro del archivo."); return; }
-    list = arr.map(o => {
-      const r = {};
-      Object.keys(o || {}).forEach(k => { const key = KEY_BY_UPPER[k.toUpperCase()]; if (key) r[key] = o[k]; });
-      return r;
-    });
+    if (Array.isArray(data)) {
+      const kind = data.length ? detectKind(Object.keys(data[0] || {})) : null;
+      if (kind) jobs.push({ cfg: MODES[kind], list: data });
+    } else if (data && typeof data === "object") {
+      if (Array.isArray(data.airports)) jobs.push({ cfg: MODES.airports, list: data.airports });
+      if (Array.isArray(data.flights)) jobs.push({ cfg: MODES.flights, list: data.flights });
+      if (Array.isArray(data.planes)) jobs.push({ cfg: MODES.planes, list: data.planes });
+    }
   } else {
-    const rows = parseCSV(text);
+    let rows = parseCSV(text);
+    // Hoja AVIONES sin encabezado: una sola columna de matrículas
+    if (rows.length && rows.every(r => r.length === 1) && /^[A-Z0-9]{1,2}-[A-Z0-9]{2,5}$/i.test(String(rows[0][0]).trim())) rows.unshift(["REG"]);
     if (rows.length < 2) { alert("El archivo no tiene datos."); return; }
-    const cols = rows[0].map(h => {
-      const key = KEY_BY_UPPER[String(h).trim().toUpperCase()];
-      if (!key && String(h).trim()) unknown.push(String(h).trim());
-      return key || null;
-    });
-    if (!cols.includes("ICAO")) { alert("No encontré la columna ICAO en la primera fila del archivo."); return; }
-    list = rows.slice(1).map(row => {
-      const r = {};
-      cols.forEach((k, i) => { if (k) r[k] = row[i] == null ? "" : row[i]; });
-      return r;
-    });
+    const kind = detectKind(rows[0]);
+    if (kind) {
+      const cfg = MODES[kind];
+      const heads = rows[0];
+      heads.forEach(h => { if (String(h).trim() && !cfg.norm[normHeader(h)]) unknown.add(String(h).trim()); });
+      const list = rows.slice(1).map(row => { const o = {}; heads.forEach((h, i) => { o[h] = row[i] == null ? "" : row[i]; }); return o; });
+      jobs.push({ cfg, list });
+    }
   }
-  const res = mergeRecords(list);
-  if (!saveDB()) return;
-  if (currentId && !db.some(r => r._id === currentId)) currentId = null;
+  if (!jobs.length) {
+    alert("No reconocí el archivo. Debe ser la tabla AD_DB (con la columna ICAO), la tabla FLIGHT_DB (con las columnas DEP y ARR), la hoja AVIONES (matrículas) o un respaldo .json de esta página.");
+    return;
+  }
+  const msgs = [];
+  jobs.forEach(j => {
+    const res = mergeInto(j.cfg, j.list);
+    saveDB(j.cfg);
+    let m = ({ flights: "Vuelos", airports: "Aeropuertos", planes: "Aviones" })[j.cfg.id] + ": " + res.added + " nuevos, " + res.updated + " actualizados.";
+    if (res.dupes) m += " Repetidos en el archivo: " + res.dupes + " (se usó el de más abajo).";
+    if (res.skipped) m += " Filas sin datos clave omitidas: " + res.skipped + ".";
+    msgs.push(m);
+  });
+  if (unknown.size) msgs.push("Columnas ignoradas: " + Array.from(unknown).join(", ") + ".");
+  refreshLists();
+  if (currentId && !C().db.some(r => r._id === currentId)) currentId = null;
   renderList();
-  // Si el formulario abierto es de un registro actualizado, se refresca
   if (currentId && !dirty) openRecord(currentId);
-  let msg = "Importados: " + res.added + " nuevos, " + res.updated + " actualizados.";
-  if (res.dupes) msg += " ICAO repetidos en el archivo: " + res.dupes + " (se usó la fila de más abajo).";
-  if (res.skipped) msg += " Filas sin ICAO omitidas: " + res.skipped + ".";
-  if (unknown.length) msg += " Columnas ignoradas: " + unknown.join(", ") + ".";
-  alert(msg);
+  alert(msgs.join("\n"));
 }
 
 /* ====================================================================
    EXPORTAR
    ==================================================================== */
-function toCSV() {
-  const q = v => {
-    v = String(v == null ? "" : v);
-    return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
-  };
-  const lines = [FIELD_ORDER.map(q).join(",")];
-  db.slice().sort((a, b) => (a.ICAO || "").localeCompare(b.ICAO || "")).forEach(r => {
-    lines.push(FIELD_ORDER.map(k => q(r[k])).join(","));
-  });
+function toCSV(cfg) {
+  const q = v => { v = String(v == null ? "" : v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const lines = [cfg.order.map(k => q(cfg.headers[k] || k)).join(",")];
+  cfg.db.slice().sort((a, b) => cfg.exportSort(a, b)).forEach(r => lines.push(cfg.order.map(k => q(r[k])).join(",")));
   return "﻿" + lines.join("\r\n");
 }
 
@@ -627,32 +1010,37 @@ async function sendFile(name, mime, text) {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
   return true;
 }
+const stamp = () => todayISO();
 
-function stamp() {
-  const d = new Date();
-  const p = n => String(n).padStart(2, "0");
-  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+function cleanCopy(cfg) {
+  return cfg.db.map(r => { const o = {}; cfg.order.forEach(k => o[k] = r[k] || ""); return o; });
 }
-
 async function exportJSON() {
-  const clean = db.map(r => { const o = {}; FIELD_ORDER.forEach(k => o[k] = r[k] || ""); return o; });
-  const payload = { app: "aeropuertos", version: 1, exported: new Date().toISOString(), airports: clean };
-  const ok = await sendFile("aeropuertos_respaldo_" + stamp() + ".json", "application/json", JSON.stringify(payload, null, 2));
+  const payload = { app: "briefing", version: 2, exported: new Date().toISOString(),
+                    airports: cleanCopy(MODES.airports), flights: cleanCopy(MODES.flights), planes: cleanCopy(MODES.planes) };
+  const ok = await sendFile("respaldo_" + stamp() + ".json", "application/json", JSON.stringify(payload, null, 2));
   if (ok) {
-    try { localStorage.setItem(BACKUP_KEY, new Date().toISOString()); } catch (e) {}
-    renderInfo();
+    try { localStorage.setItem("ad_last_backup", new Date().toISOString()); } catch (e) {}
+    renderFoot();
   }
 }
 async function exportCSV() {
-  await sendFile("aeropuertos_" + stamp() + ".csv", "text/csv", toCSV());
+  const cfg = C();
+  await sendFile(cfg.csvName + "_" + stamp() + ".csv", "text/csv", toCSV(cfg));
 }
 
 /* ====================================================================
    EVENTOS
    ==================================================================== */
-buildForm();
-renderList();
+buildForm(MODES.flights);
+buildForm(MODES.airports);
+buildForm(MODES.planes);
+refreshLists();
+setMode(mode);
 
+$("#tabFlights").addEventListener("click", () => { if (mode !== "flights") guard(() => setMode("flights")); });
+$("#tabAirports").addEventListener("click", () => { if (mode !== "airports") guard(() => setMode("airports")); });
+$("#tabPlanes").addEventListener("click", () => { if (mode !== "planes") guard(() => setMode("planes")); });
 $("#q").addEventListener("input", renderList);
 $("#btnNew").addEventListener("click", () => guard(newRecord));
 $("#btnSave").addEventListener("click", saveForm);
@@ -678,7 +1066,8 @@ $("#file").addEventListener("change", e => {
 
 const dlg = $("#dlgExport");
 $("#btnExport").addEventListener("click", () => {
-  if (db.length === 0) { toast("No hay aeropuertos para exportar"); return; }
+  if (MODES.flights.db.length + MODES.airports.db.length + MODES.planes.db.length === 0) { toast("No hay nada para exportar"); return; }
+  $("#expCsv").textContent = C().csvLabel;
   dlg.showModal();
 });
 $("#expClose").addEventListener("click", () => dlg.close());
@@ -686,7 +1075,7 @@ $("#expJson").addEventListener("click", async () => { dlg.close(); await exportJ
 $("#expCsv").addEventListener("click", async () => { dlg.close(); await exportCSV(); });
 
 // Si gira el iPad o cambia el ancho, se reajusta la altura de los campos de texto
-window.addEventListener("resize", () => form.querySelectorAll("textarea").forEach(autosize));
+window.addEventListener("resize", () => C().form.querySelectorAll("textarea").forEach(autosize));
 
 // Pide al navegador que no borre los datos guardados (si lo permite)
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
