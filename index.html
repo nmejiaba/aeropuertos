@@ -77,6 +77,7 @@ legend{font-weight:700;padding:0 6px;color:var(--accent)}
 .fld{display:flex;flex-direction:column;gap:4px;min-width:0}
 .fld.wide{grid-column:1 / -1}
 .fld span{font-size:13px;color:var(--muted);letter-spacing:.02em}
+.fld.caution > span:first-child{align-self:flex-start;background:#ffd400;color:#14202e;font-weight:700;font-size:14px;padding:3px 10px;border-radius:6px}
 .fld span.hint{color:var(--warn);font-size:12px}
 .fld input,.fld select,.fld textarea{
   width:100%;min-height:44px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--field)
@@ -256,7 +257,7 @@ const SECTIONS_A = [
     { k: "CAT", t: "select", opts: ["CAT A", "CAT B", "CAT C"] },
     { k: "DATE_CCI", t: "date" },
     { sub: "Arrival" },
-    { k: "CCI_ARR", t: "area" },
+    { k: "CCI_ARR", t: "area", caution: true  },
     { sub: "Ground Operations" },
     { k: "FREQ", t: "text" },
     { k: "CCI_PARK", t: "area" }, { k: "CCI_RETI", t: "area" }, { k: "CCI_GNDOPS", t: "area" },
@@ -616,7 +617,7 @@ function autosize(el) {
 
 function makeField(cfg, f) {
   const wrap = document.createElement("label");
-  wrap.className = "fld" + (f.t === "area" ? " wide" : "");
+  wrap.className = "fld" + (f.t === "area" ? " wide" : "") + (f.caution ? " caution" : "");
   const span = document.createElement("span");
   span.textContent = cfg.labels[f.k] || f.k;
   let el;
