@@ -112,9 +112,58 @@ dialog h3{margin:0 0 6px}
 dialog p{margin:0 0 14px;color:var(--muted);font-size:14px}
 dialog .stack{display:flex;flex-direction:column;gap:10px}
 
+
+/* ---- Páginas del PDF (se usan en el editor y al imprimir) ---- */
+.lpage{position:relative;width:calc(var(--u)*210);height:calc(var(--u)*297);background:#fff;color:#000;font-family:Helvetica,Arial,sans-serif;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.lb{position:absolute;box-sizing:border-box;line-height:1.25;overflow:hidden;display:flex}
+.lb.bd{border:calc(var(--u)*.25) solid #000}
+.lb-hd{display:flex;justify-content:space-between;align-items:center;padding:calc(var(--u)*.3) calc(var(--u)*1.2);font-size:.85em;gap:calc(var(--u)*2)}
+.lb-hd.line{border-bottom:calc(var(--u)*.25) solid #000}
+.lb-chip{background:#d9d9d9;padding:0 calc(var(--u)*2);font-weight:700}
+.lb-l.caution{background:#ffd400;font-weight:700;padding:0 calc(var(--u)*1.2)}
+.lb-val{flex:1;padding:calc(var(--u)*.6) calc(var(--u)*1.4);white-space:pre-wrap;overflow-wrap:anywhere;overflow:hidden;min-height:0}
+.lb-k{border-right:calc(var(--u)*.25) solid #000;padding:0 calc(var(--u)*1.2);font-weight:700;display:flex;align-items:center;flex:none}
+.lb-v{flex:1;padding:0 calc(var(--u)*1.4);display:flex;align-items:center;white-space:pre-wrap;overflow:hidden;overflow-wrap:anywhere;min-width:0}
+.lb-v.shade{background:#d9d9d9;font-weight:700;justify-content:center;text-align:center}
+.lb-banner{background:#d9d9d9;font-weight:700;letter-spacing:.25em;align-items:center;padding:0 calc(var(--u)*2)}
+.lb-text{align-items:flex-start;white-space:pre-wrap}
+.lb-grid{display:grid;border-top:calc(var(--u)*.25) solid #000;border-left:calc(var(--u)*.25) solid #000}
+.lb-grid .cell{border-right:calc(var(--u)*.25) solid #000;border-bottom:calc(var(--u)*.25) solid #000}
+.ph{color:#aaa}
+.bold{font-weight:700}
+
+/* ---- Editor del diseño ---- */
+#ed{position:fixed;inset:0;z-index:20;background:var(--bg);display:flex;flex-direction:column}
+#ed[hidden]{display:none}
+.ed-top{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+.ed-top button{min-height:36px;font-size:14px;padding:0 10px}
+.ed-top .sep{width:1px;height:24px;background:var(--line);margin:0 4px}
+.ed-top button.on{background:var(--active);border-color:var(--accent);font-weight:700}
+.ed-body{flex:1;display:flex;min-height:0}
+.ed-canvas{flex:1;overflow:auto;padding:20px;display:flex;justify-content:center;align-items:flex-start;background:#cfd4da}
+.ed-canvas .lpage{box-shadow:0 2px 12px rgba(0,0,0,.35);flex:none}
+.ed-panel{width:290px;overflow:auto;background:var(--panel);border-left:1px solid var(--line);padding:12px;font-size:14px}
+.ed-panel .pf{display:flex;flex-direction:column;gap:3px;margin-bottom:9px}
+.ed-panel .pf>span{font-size:12px;color:var(--muted)}
+.ed-panel input[type=text],.ed-panel input[type=number],.ed-panel select,.ed-panel textarea{width:100%;min-height:34px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--field)}
+.ed-panel .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ed-panel .chk{display:flex;gap:6px;align-items:center;margin:0 0 6px}
+.ed-panel .btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.ed-panel .btns button{min-height:36px;font-size:14px}
+.ed-panel p{color:var(--muted);margin:0 0 10px}
+.ed .lb{cursor:move;touch-action:none}
+.ed .lb *{pointer-events:none}
+.ed .lb:hover{outline:1px dashed #0b57d0}
+.ed .lb.over{outline:2px dashed #d32f2f}
+.ed .lb.sel{outline:2px solid #0b57d0;z-index:5;overflow:visible}
+.ed .rz{pointer-events:auto!important;position:absolute;right:-5px;bottom:-5px;width:11px;height:11px;background:#0b57d0;border:1px solid #fff;cursor:nwse-resize;z-index:6}
+
 #printSheet{display:none}
 @media print{
-  @page{size:A4;margin:10mm}
+  @page{size:A4;margin:0}
+  #ed{display:none!important}
+  #printSheet.layout .lpage{break-after:page;height:296mm}
+  #printSheet.layout .lpage:last-child{break-after:auto}
   html,body{height:auto;background:#fff;color:#000}
   .app,#toast,dialog{display:none!important}
   #printSheet{display:block;font:9.5pt/1.3 Helvetica,Arial,sans-serif;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -182,6 +231,7 @@ dialog .stack{display:flex;flex-direction:column;gap:10px}
         <button id="btnExport" type="button">Exportar</button>
       </div>
     </div>
+    <div style="padding:0 14px 8px"><button id="btnLayout" type="button" class="ghost" style="width:100%;border:1px dashed var(--line)">Diseño del PDF</button></div>
     <ul id="list" class="list"></ul>
     <div class="side-foot" id="info"></div>
   </aside>
@@ -216,6 +266,34 @@ dialog .stack{display:flex;flex-direction:column;gap:10px}
   </div>
 </dialog>
 
+<div id="ed" hidden>
+  <div class="ed-top">
+    <b>Diseño del PDF</b>
+    <span class="sep"></span>
+    <span id="edTabs" style="display:flex;gap:4px"></span>
+    <button id="edAddPage" type="button">+ Página</button>
+    <span class="sep"></span>
+    <button id="edAddField" type="button">+ Campo</button>
+    <button id="edAddBanner" type="button">+ Título</button>
+    <button id="edAddText" type="button">+ Texto</button>
+    <button id="edAddGrid" type="button">+ Cuadrícula</button>
+    <span class="sep"></span>
+    <button id="edUndo" type="button">Deshacer</button>
+    <label style="font-size:13px;display:flex;align-items:center;gap:6px">Zoom <input id="edZoom" type="range" min="0.5" max="1.8" step="0.1" value="1"></label>
+    <span class="sep"></span>
+    <button id="edPreview" type="button" class="primary">Vista previa / PDF</button>
+    <button id="edExport" type="button">Exportar diseño</button>
+    <button id="edImport" type="button">Importar diseño</button>
+    <button id="edReset" type="button" class="danger">Restablecer</button>
+    <span class="spacer"></span>
+    <button id="edClose" type="button">Cerrar</button>
+  </div>
+  <div class="ed-body">
+    <div class="ed-canvas" id="edCanvas"><div id="edPageWrap"></div></div>
+    <div class="ed-panel" id="edPanel"></div>
+  </div>
+</div>
+<input type="file" id="edFile" accept=".json,application/json" hidden>
 <div id="printSheet"></div>
 
 <div id="toast"></div>
@@ -934,6 +1012,7 @@ function setMode(m) {
   });
   const cfg = C();
   $("#btnPdf").hidden = m !== "flights";
+  $("#btnLayout").hidden = m !== "flights";
   $("#q").placeholder = cfg.search;
   $("#q").value = "";
   $("#empty").textContent = cfg.emptyForm;
@@ -1019,6 +1098,8 @@ function importText(name, text) {
       if (Array.isArray(data.airports)) jobs.push({ cfg: MODES.airports, list: data.airports });
       if (Array.isArray(data.flights)) jobs.push({ cfg: MODES.flights, list: data.flights });
       if (Array.isArray(data.planes)) jobs.push({ cfg: MODES.planes, list: data.planes });
+      if (validLayout(data.layout) && JSON.stringify(data.layout) !== JSON.stringify(LAYOUT) &&
+          confirm("El respaldo incluye un diseño del PDF distinto al actual. ¿Reemplazar el diseño actual?")) { LAYOUT = data.layout; commit(); }
     }
   } else {
     let rows = parseCSV(text);
@@ -1085,7 +1166,7 @@ function cleanCopy(cfg) {
 }
 async function exportJSON() {
   const payload = { app: "briefing", version: 2, exported: new Date().toISOString(),
-                    airports: cleanCopy(MODES.airports), flights: cleanCopy(MODES.flights), planes: cleanCopy(MODES.planes) };
+                    airports: cleanCopy(MODES.airports), flights: cleanCopy(MODES.flights), planes: cleanCopy(MODES.planes), layout: LAYOUT };
   const ok = await sendFile("respaldo_" + stamp() + ".json", "application/json", JSON.stringify(payload, null, 2));
   if (ok) {
     try { localStorage.setItem("ad_last_backup", new Date().toISOString()); } catch (e) {}
@@ -1165,81 +1246,338 @@ function fmtLong(v) {
 }
 const hx = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
-function buildCardSheet(r) {
-  const kv = (k, v, g) => '<div class="kv"><div class="k">' + hx(k) + '</div><div class="v' + (g ? " g" : "") + '">' + hx(v) + '</div></div>';
-  const tbl = (cols, items) => '<div class="tbl c' + cols + '">' + items.join("") + '</div>';
-  const box = (label, v, cls, caution) => '<div class="bx ' + (cls || "") + '"><span class="bl' + (caution ? " caution" : "") + '">' + hx(label) + '</span><div class="bv">' + hx(v) + '</div></div>';
-  const boxD = (label, date, v, cls) => '<div class="bx ' + (cls || "") + '"><div class="hd"><span>' + hx(label) + '</span><b>' + hx(fmtLong(date)) + '</b></div><div class="bv">' + hx(v) + '</div></div>';
-  const row = (inner, style) => '<div class="row"' + (style ? ' style="' + style + '"' : "") + '>' + inner + '</div>';
-  const wrap = (style, inner, cls) => '<div class="' + (cls || "col") + '" style="' + style + '">' + inner + '</div>';
-  const L = LABELS_A;
-  const cap = k => CAUTION_KEYS.has(k);
-  let h = "";
 
-  // --- Cabecera ---
-  const idBox = tbl(1, [kv("OFP", r.OFP), kv("FLT N", r.FLT_NUM, true), kv("Date", fmtLong(r.DATE), true), kv("REG", r.REG),
-    kv("DEP", r.DEP, true) + kv("", r.DEP_UTC), kv("ARR", r.ARR, true) + kv("", r.ARR_UTC)]);
-  const times = tbl(3, [kv("STD", r.STD, true), kv("TRIP", r.TRIP), kv("CREW", ""), kv("STA", r.STA, true), kv("BLK", r.BLK), kv("PAX", ""),
-    kv("STA-A", r.STA_ALT, true), kv("FL", r.FL), kv("TOTAL", "")]);
-  const lay = row(box("Layover", r.LAYOVER, "mid", false) .replace('class="bx mid"', 'class="bx mid" style="width:26%"') +
-    box("Notices & Comms", r.NOT_COMMS, "mid", false).replace('class="bx mid"', 'class="bx mid" style="flex:1"'), "margin:6px 0 0");
-  const crew = tbl(1, [kv("FO", r.FO), kv("PUR", r.PUR), kv("CSV", r.SUP), kv("CAPT", r.CAPT_AUG), kv("FO", r.FO_AUG)]);
-  const efb = tbl(1, [kv("EFB", r.EFB), kv("CHART", r.CHART)]);
-  const tm = tbl(2, [kv("IN", ""), kv("LND", ""), kv("OUT", ""), kv("TO", ""), kv("BLK", ""), kv("FLT", "")]);
-  const fuel = tbl(1, [kv("F.DEP", ""), kv("F.OFP", ""), kv("F.ARR", "")]);
-  h += row(wrap("width:15%", idBox) + wrap("flex:1", times + lay.replace('class="row"', 'class="row" ')) +
-    wrap("width:34%", row(wrap("flex:1", crew, "col") + wrap("width:96px", efb, "col"), "margin:0") + row(wrap("flex:1", tm, "col") + wrap("width:96px", fuel, "col"), "margin:0")));
-  h += row(box("MEL", r.MEL, "sm", false).replace('class="bx sm"', 'class="bx sm" style="flex:1"'));
+/* ---- Diseño del PDF: bloques con posición en milímetros ---- */
+const LKEY = "pdf_layout_v1";
+const lid = () => "b" + Math.random().toString(36).slice(2, 8);
+function B(page, t, x, y, w, h, o) {
+  return Object.assign({ id: lid(), page, t, x, y, w, h, st: "box", label: "", key: "", dk: "", fs: 7.5, lw: 0,
+    shade: false, bold: false, caution: false, border: true, cw: "", rh: "" }, o || {});
+}
+function defaultLayout() {
+  const L = LABELS_A, bl = [];
+  const S = (key, label, x, y, w, h, lw, o) => bl.push(B(0, "field", x, y, w, h, Object.assign({ st: "side", key, label, lw }, o || {})));
+  const X = (key, label, x, y, w, h, o) => bl.push(B(0, "field", x, y, w, h, Object.assign({ st: "box", key, label }, o || {})));
+  const N = (t, label, x, y, w, h, o) => bl.push(B(0, t, x, y, w, h, Object.assign({ label }, o || {})));
+  const sh = { shade: true };
+  // Cabecera
+  S("OFP", "OFP", 10, 10, 30, 5, 11); S("FLT_NUM", "FLT N", 10, 15, 30, 5, 11, sh); S("DATE", "Date", 10, 20, 30, 5, 11, sh);
+  S("REG", "REG", 10, 25, 30, 5, 11); S("DEP", "DEP", 10, 30, 30, 5, 11, sh); S("DEP_UTC", "", 10, 35, 30, 5, 0);
+  S("ARR", "ARR", 10, 40, 30, 5, 11, sh); S("ARR_UTC", "", 10, 45, 30, 5, 0);
+  S("STD", "STD", 43, 10, 35, 5, 10, sh); S("TRIP", "TRIP", 78, 10, 35, 5, 10); S("", "CREW", 113, 10, 35, 5, 10);
+  S("STA", "STA", 43, 15, 35, 5, 10, sh); S("BLK", "BLK", 78, 15, 35, 5, 10); S("", "PAX", 113, 15, 35, 5, 10);
+  S("STA_ALT", "STA-A", 43, 20, 35, 5, 11, sh); S("FL", "FL", 78, 20, 35, 5, 10); S("", "TOTAL", 113, 20, 35, 5, 10);
+  X("LAYOVER", "Layover", 43, 26, 26, 11); X("NOT_COMMS", "Notices & Comms", 70, 26, 78, 11);
+  S("", "IN", 43, 39, 35, 5, 8); S("", "OUT", 78, 39, 35, 5, 8); S("", "BLK", 113, 39, 35, 5, 8);
+  S("", "LND", 43, 44, 35, 5, 8); S("", "TO", 78, 44, 35, 5, 8); S("", "FLT", 113, 44, 35, 5, 8);
+  const cw = { fs: 6.5 };
+  S("FO", "FO", 151, 10, 49, 5.6, 8, cw); S("PUR", "PUR", 151, 15.6, 49, 5.6, 8, cw); S("SUP", "CSV", 151, 21.2, 49, 5.6, 8, cw);
+  S("CAPT_AUG", "CAPT", 151, 26.8, 49, 5.6, 9, cw); S("FO_AUG", "FO", 151, 32.4, 49, 5.6, 8, cw);
+  S("EFB", "EFB", 151, 39, 24, 5, 8, cw); S("CHART", "CHART", 175, 39, 25, 5, 10, cw);
+  S("", "F.DEP", 151, 44.5, 16, 5, 9, { fs: 6.5 }); S("", "F.OFP", 167, 44.5, 16.5, 5, 9, { fs: 6.5 }); S("", "F.ARR", 183.5, 44.5, 16.5, 5, 9, { fs: 6.5 });
+  S("MEL", "MEL", 10, 52, 190, 7, 12);
+  // Salida
+  N("banner", "DEPARTURE", 10, 61, 88, 7, { fs: 13, border: false });
+  S("DEP_CAT", "CAT", 10, 70, 26, 5.5, 9, sh); S("DEP_FRQ", "FREQ", 10, 75.5, 26, 5.5, 9, sh);
+  X("DEP_NOTAMS", "NOTAMS", 38, 70, 62, 24);
+  S("AOI_Speed_DEP", "SPEED", 103, 70, 97, 5.5, 17); S("AOI_STARTUP", "STARTUP", 103, 75.5, 97, 5.5, 17);
+  S("AOI_PROC_DEP", "PROC", 103, 81, 97, 8, 17); S("AOI_NAP_DEP", "NAP", 103, 89, 97, 5, 17);
+  X("CCI_DEP", L.CCI_DEP || "CCI DEP", 10, 96, 72, 24, { dk: "DEP_CCI_DATE" });
+  X("CRA_DEP", L.CRA_DEP || "CRA DEP", 84, 96, 62, 24); X("VARIOS_DEP", L.VARIOS_DEP || "VARIOS DEP", 148, 96, 52, 24);
+  X("NOTES_DEP", "NOTES DEP", 10, 122, 190, 9);
+  // Llegada
+  N("banner", "ARRIVAL", 10, 133, 88, 7, { fs: 13, border: false });
+  S("ARR_CAT", "CAT", 10, 142, 26, 5.5, 9, sh); S("ARR_FRQ", "FREQ", 10, 147.5, 26, 5.5, 9, sh);
+  X("ARR_NOTAMS", "NOTAMS", 38, 142, 62, 30);
+  S("AOI_Speed_ARR", "SPEED", 103, 142, 97, 5.5, 17); S("AOI_PROC_ARR", "PROC", 103, 147.5, 97, 8, 17);
+  S("AOI_Taxirest", "TAXI", 103, 155.5, 97, 8, 17); S("AOI_Ops", "OPS", 103, 163.5, 97, 8, 17);
+  S("AOI_NAP", "NAP", 103, 171.5, 48, 5, 10); S("AOI_NAP_ARR", "NAP ARR", 151, 171.5, 49, 5, 15);
+  X("CCI_ARR", L.CCI_ARR || "CCI ARR", 10, 178, 76, 26, { dk: "CCI_DATE_ARR", caution: true });
+  S("CCI_PARK", "GATE", 88, 178, 38, 5.5, 12); S("CCI_RETI", "RETI", 88, 183.5, 38, 5.5, 12);
+  X("CCI_GNDOPS", L.CCI_GNDOPS || "GND OPS", 88, 189, 38, 15);
+  X("ARR_WX", "WX", 128, 178, 72, 26, { dk: "ARR_WX_TIME" });
+  X("CRA_ARR", L.CRA_ARR || "CRA ARR", 10, 206, 94, 16); X("VARIOS_ARR", L.VARIOS_ARR || "VARIOS ARR", 106, 206, 94, 16);
+  X("NOTES_ARR", "NOTES ARR", 10, 224, 190, 9);
+  // Crucero
+  N("banner", "CRZ", 10, 235, 88, 7, { fs: 13, border: false });
+  X("CRZ_SIGWX", "SIG WX", 10, 244, 60, 20); X("CRZ_TURB", "TURB", 72, 244, 60, 20); X("CRZ_TROPO", "TROPO", 134, 244, 66, 20);
+  X("NOTES_CRZ", "NOTES CRZ", 10, 266, 190, 9);
+  // Página 2
+  const g = (y, h) => bl.push(B(1, "grid", 10, y, 190, h, { cw: "1,1,1,1,1,1,1,1", rh: "1,1.3,3.8" }));
+  g(10, 40); g(54, 40); g(98, 40);
+  bl.push(B(1, "grid", 10, 146, 190, 88, { cw: "1.1,1.7,.8,1.9,.8,1.9", rh: "1,1,1,1,1,1,1,1" }));
+  bl.push(B(1, "text", 10, 238, 60, 5, { label: "ALTERNATE", border: false, fs: 8 }));
+  bl.push(B(1, "field", 10, 244, 17, 22, { key: "ALT" }));
+  bl.push(B(1, "field", 29, 244, 100, 22, { key: "ALTNOTAMS" }));
+  bl.push(B(1, "field", 131, 244, 69, 22, { key: "ALTWX" }));
+  return { v: 1, pages: 2, blocks: bl };
+}
+function validLayout(o) { return o && Array.isArray(o.blocks) && o.pages > 0 && o.blocks.every(b => b && b.id && typeof b.x === "number"); }
+function loadLayout() {
+  try { const raw = localStorage.getItem(LKEY); if (raw) { const o = JSON.parse(raw); if (validLayout(o)) return o; } } catch (e) {}
+  return defaultLayout();
+}
+let LAYOUT = loadLayout();
+let lastSaved = JSON.stringify(LAYOUT);
+let undoStack = [];
+function saveLayout() { try { localStorage.setItem(LKEY, JSON.stringify(LAYOUT)); } catch (e) {} }
+function commit() {
+  const now = JSON.stringify(LAYOUT);
+  if (now !== lastSaved) { undoStack.push(lastSaved); if (undoStack.length > 60) undoStack.shift(); lastSaved = now; saveLayout(); }
+}
+const blk = id => LAYOUT.blocks.find(b => b.id === id);
+const lu = n => "calc(var(--u)*" + n + ")";
+const nums = s => String(s || "").split(",").map(Number).filter(n => n > 0);
 
-  // --- Salida ---
-  h += '<div class="ban">DEPARTURE</div>';
-  h += row(
-    wrap("width:56%", row(wrap("width:84px", tbl(1, [kv("CAT", r.DEP_CAT, true), kv("FREQ", r.DEP_FRQ, true)])) +
-      box("NOTAMS", r.DEP_NOTAMS, "mid", false).replace('class="bx mid"', 'class="bx mid" style="flex:1"'), "margin:0"), "col") +
-    wrap("flex:1", tbl(1, [kv("SPEED", r.AOI_Speed_DEP), kv("STARTUP", r.AOI_STARTUP), kv("PROC", r.AOI_PROC_DEP), kv("NAP", r.AOI_NAP_DEP)]).replace('class="tbl c1"', 'class="tbl c1" ')));
-  h += row(boxD("CCI", r.DEP_CCI_DATE, r.CCI_DEP, "tall") .replace('class="bx tall"', 'class="bx tall" style="flex:1.3"') +
-    box(L.CRA_DEP || "CRA DEP", r.CRA_DEP, "tall", false).replace('class="bx tall"', 'class="bx tall" style="flex:1.3"') +
-    box(L.VARIOS_DEP || "VARIOS DEP", r.VARIOS_DEP, "tall", false).replace('class="bx tall"', 'class="bx tall" style="flex:1"'));
-  h += row(box("NOTES DEP", r.NOTES_DEP, "sm", false).replace('class="bx sm"', 'class="bx sm" style="flex:1"'));
-
-  // --- Llegada ---
-  h += '<div class="ban">ARRIVAL</div>';
-  h += row(
-    wrap("width:56%", row(wrap("width:84px", tbl(1, [kv("CAT", r.ARR_CAT, true), kv("FREQ", r.ARR_FRQ, true)])) +
-      box("NOTAMS", r.ARR_NOTAMS, "mid", false).replace('class="bx mid"', 'class="bx mid" style="flex:1"'), "margin:0"), "col") +
-    wrap("flex:1", tbl(1, [kv("SPEED", r.AOI_Speed_ARR), kv("PROC", r.AOI_PROC_ARR), kv("TAXI", r.AOI_Taxirest), kv("OPS", r.AOI_Ops),
-      kv("NAP", [r.AOI_NAP, r.AOI_NAP_ARR].filter(Boolean).join("  |  "))])));
-  h += row(boxD(L.CCI_ARR || "CCI ARR", r.CCI_DATE_ARR, r.CCI_ARR, "tall") .replace('class="bx tall"', 'class="bx tall" style="flex:1.4"') +
-    wrap("width:26%", tbl(1, [kv("GATE", r.CCI_PARK), kv("RETI", r.CCI_RETI)]) + box(L.CCI_GNDOPS || "GND OPS", r.CCI_GNDOPS, "sm", false).replace('class="bx sm"', 'class="bx sm" style="flex:1"')) +
-    boxD("WX", r.ARR_WX_TIME, r.ARR_WX, "tall") .replace('class="bx tall"', 'class="bx tall" style="flex:1.6"').replace('<b>' + hx(fmtLong(r.ARR_WX_TIME)) + '</b>', '<b>' + hx(r.ARR_WX_TIME) + '</b>'));
-  h += row(box(L.CRA_ARR || "CRA ARR", r.CRA_ARR, "mid", false).replace('class="bx mid"', 'class="bx mid" style="flex:1"') +
-    box(L.VARIOS_ARR || "VARIOS ARR", r.VARIOS_ARR, "mid", false).replace('class="bx mid"', 'class="bx mid" style="flex:1"'));
-  h += row(box("NOTES ARR", r.NOTES_ARR, "sm", false).replace('class="bx sm"', 'class="bx sm" style="flex:1"'));
-
-  // --- Crucero ---
-  h += '<div class="ban">CRZ</div>';
-  h += row(box("SIG WX", r.CRZ_SIGWX, "mid", false).replace('class="bx mid"', 'class="bx mid" style="flex:1"') +
-    box("TURB", r.CRZ_TURB, "mid", false).replace('class="bx mid"', 'class="bx mid" style="flex:1"') +
-    box("TROPO", r.CRZ_TROPO, "mid", false).replace('class="bx mid"', 'class="bx mid" style="flex:1"'));
-  h += row(box("NOTES CRZ", r.NOTES_CRZ, "sm", false).replace('class="bx sm"', 'class="bx sm" style="flex:1"'));
-
-  // --- Página 2: cuadrículas para anotar, tabla de FIR y alterno ---
-  const blank = () => '<div class="tbl c8">' + Array.from({ length: 8 }, () => '<div class="cell"></div>').join("") +
-    Array.from({ length: 8 }, () => '<div class="cell h2"></div>').join("") + Array.from({ length: 8 }, () => '<div class="cell h3"></div>').join("") + '</div>';
-  h += '<div class="pb"></div>' + blank() + blank() + blank();
-  h += '<div class="tbl fir" style="margin-top:10px">' + Array.from({ length: 48 }, () => '<div class="cell"></div>').join("") + '</div>';
-  h += '<div style="margin:12px 0 2px;font-size:8pt">ALTERNATE</div>';
-  h += row(box("", r.ALT, "tall", false).replace('class="bx tall"', 'class="bx tall" style="width:9%"') +
-    box("", r.ALTNOTAMS, "tall", false).replace('class="bx tall"', 'class="bx tall" style="flex:1.5"') +
-    box("", r.ALTWX, "tall", false).replace('class="bx tall"', 'class="bx tall" style="flex:1"'));
-  const sheet = $("#printSheet");
-  sheet.className = "card";
-  sheet.innerHTML = h;
+function renderBlock(b, rec, edit) {
+  const d = document.createElement("div");
+  d.className = "lb lb-" + b.t + ((b.border && (b.t === "field")) ? " bd" : "");
+  d.dataset.id = b.id;
+  applyGeom(d, b);
+  d.style.fontSize = lu((b.fs || 7.5) * 0.3528);
+  if (b.bold && b.t !== "field") d.style.fontWeight = "700";
+  const val = k => { if (!k || !rec) return ""; const v = rec[k]; return isISO(v) ? fmtLong(v) : (v || ""); };
+  const addText = (el, txt, key) => {
+    if (txt) el.textContent = txt;
+    else if (!rec && key) { el.textContent = "‹" + key + "›"; el.classList.add("ph"); }
+  };
+  if (b.t === "field") {
+    if (b.st === "side") {
+      d.style.flexDirection = "row";
+      if (b.label || b.lw) {
+        const k = document.createElement("div"); k.className = "lb-k"; k.style.width = lu(b.lw || 12); k.textContent = b.label;
+        if (b.caution) k.style.background = "#ffd400";
+        d.appendChild(k);
+      }
+      const v = document.createElement("div"); v.className = "lb-v" + (b.shade ? " shade" : "") + (b.bold ? " bold" : "");
+      addText(v, val(b.key), b.key); d.appendChild(v);
+    } else {
+      d.style.flexDirection = "column";
+      if (b.label || b.dk) {
+        const hd = document.createElement("div"); hd.className = "lb-hd" + (b.dk ? " line" : "");
+        const l = document.createElement("span"); l.className = "lb-l" + (b.caution ? " caution" : ""); l.textContent = b.label; hd.appendChild(l);
+        if (b.dk) { const c = document.createElement("b"); c.className = "lb-chip"; addText(c, val(b.dk), b.dk); hd.appendChild(c); }
+        d.appendChild(hd);
+      }
+      const v = document.createElement("div"); v.className = "lb-val" + (b.bold ? " bold" : "");
+      addText(v, val(b.key), b.key); d.appendChild(v);
+    }
+  } else if (b.t === "banner" || b.t === "text") {
+    d.textContent = b.label || "";
+  } else if (b.t === "grid") {
+    const cw = nums(b.cw), rh = nums(b.rh);
+    const cols = cw.length ? cw : [1], rows = rh.length ? rh : [1];
+    d.style.gridTemplateColumns = cols.map(n => n + "fr").join(" ");
+    d.style.gridTemplateRows = rows.map(n => n + "fr").join(" ");
+    for (let i = 0; i < cols.length * rows.length; i++) { const c = document.createElement("div"); c.className = "cell"; d.appendChild(c); }
+  }
+  return d;
+}
+function applyGeom(el, b) {
+  el.style.left = lu(b.x); el.style.top = lu(b.y); el.style.width = lu(b.w); el.style.height = lu(b.h);
+}
+function renderPageEl(i, rec, edit) {
+  const pg = document.createElement("div");
+  pg.className = "lpage";
+  pg.style.setProperty("--u", edit ? (3 * edZoom) + "px" : "1mm");
+  LAYOUT.blocks.filter(b => b.page === i).forEach(b => pg.appendChild(renderBlock(b, rec, edit)));
+  return pg;
 }
 
-function printFlight() {
-  const rec = collectForm(MODES.flights);
-  buildCardSheet(rec);
+/* ---- Editor ---- */
+let edPage = 0, edSel = null, edRec = null, edZoom = 1;
+const snapMm = v => Math.round(v * 2) / 2;
+
+function checkOver(el) {
+  el.classList.remove("over");
+  el.querySelectorAll(".lb-val,.lb-v").forEach(v => { if (v.scrollHeight > v.clientHeight + 1) el.classList.add("over"); });
+}
+function markSel() {
+  const pg = $("#edPageWrap .lpage");
+  if (!pg) return;
+  pg.querySelectorAll(".lb.sel").forEach(e => { e.classList.remove("sel"); const r = e.querySelector(".rz"); if (r) r.remove(); });
+  if (edSel) {
+    const el = pg.querySelector('.lb[data-id="' + edSel + '"]');
+    if (el) { el.classList.add("sel"); const r = document.createElement("div"); r.className = "rz"; el.appendChild(r); }
+  }
+}
+function edRender() {
+  const tabs = $("#edTabs");
+  tabs.textContent = "";
+  for (let i = 0; i < LAYOUT.pages; i++) {
+    const t = document.createElement("button"); t.type = "button"; t.textContent = "Pág " + (i + 1);
+    if (i === edPage) t.className = "on";
+    t.addEventListener("click", () => { edPage = i; edSel = null; edRender(); });
+    tabs.appendChild(t);
+  }
+  const wrap = $("#edPageWrap");
+  wrap.textContent = "";
+  const pg = renderPageEl(edPage, edRec, true);
+  wrap.appendChild(pg);
+  pg.querySelectorAll(".lb").forEach(checkOver);
+  markSel();
+  edPanel();
+}
+function refreshBlock(b) {
+  const pg = $("#edPageWrap .lpage");
+  const old = pg && pg.querySelector('.lb[data-id="' + b.id + '"]');
+  if (!old) return;
+  const el = renderBlock(b, edRec, true);
+  pg.replaceChild(el, old);
+  checkOver(el);
+  if (edSel === b.id) { el.classList.add("sel"); const r = document.createElement("div"); r.className = "rz"; el.appendChild(r); }
+}
+function selectBlock(id) { edSel = id; markSel(); edPanel(); }
+
+function edPanel() {
+  const P = $("#edPanel");
+  P.textContent = "";
+  const b = edSel ? blk(edSel) : null;
+  if (!b) {
+    P.append(psEl("p", "", "Toca o haz clic en un bloque para editarlo. Arrástralo para moverlo y usa el cuadrito azul de la esquina para cambiar su tamaño."));
+    P.append(psEl("p", "", "Teclado: flechas mueven 0.5 mm (con Shift, 5 mm), Supr borra, Ctrl+Z deshace, Ctrl+D duplica."));
+    P.append(psEl("p", "", "Un bloque con borde rojo punteado tiene texto que no cabe: hazlo más grande o baja el tamaño de letra."));
+    if (LAYOUT.pages > 1) {
+      const btn = psEl("button", "danger", "Quitar esta página"); btn.type = "button";
+      btn.addEventListener("click", () => {
+        if (!confirm("¿Quitar la página " + (edPage + 1) + " y todos sus bloques?")) return;
+        LAYOUT.blocks = LAYOUT.blocks.filter(x => x.page !== edPage);
+        LAYOUT.blocks.forEach(x => { if (x.page > edPage) x.page--; });
+        LAYOUT.pages--; edPage = Math.min(edPage, LAYOUT.pages - 1); commit(); edRender();
+      });
+      P.append(btn);
+    }
+    return;
+  }
+  const row = (lab, el) => { const l = document.createElement("label"); l.className = "pf"; l.append(psEl("span", "", lab), el); P.appendChild(l); return el; };
+  const bind = (el, prop, kind, rebuild) => {
+    el.addEventListener("input", () => {
+      b[prop] = kind === "num" ? (parseFloat(el.value) || 0) : kind === "chk" ? el.checked : el.value;
+      if (["x", "y", "w", "h"].includes(prop)) { const e = $('#edPageWrap .lb[data-id="' + b.id + '"]'); if (e) applyGeom(e, b); checkOverId(b.id); }
+      else refreshBlock(b);
+    });
+    el.addEventListener("change", () => { commit(); if (rebuild) edPanel(); });
+    return el;
+  };
+  const checkOverId = id => { const e = $('#edPageWrap .lb[data-id="' + id + '"]'); if (e) checkOver(e); };
+  const mkSel = (opts, cur) => { const s = document.createElement("select"); opts.forEach(([v, t]) => { const o = document.createElement("option"); o.value = v; o.textContent = t; if (v === cur) o.selected = true; s.appendChild(o); }); return s; };
+  const mkNum = v => { const i = document.createElement("input"); i.type = "number"; i.step = "0.5"; i.value = v; return i; };
+  const mkTxt = v => { const i = document.createElement("input"); i.type = "text"; i.value = v || ""; return i; };
+  const chk = (lab, prop) => { const l = document.createElement("label"); l.className = "chk"; const c = document.createElement("input"); c.type = "checkbox"; c.checked = !!b[prop]; l.append(c, document.createTextNode(lab)); bind(c, prop, "chk"); P.appendChild(l); };
+  const keyOpts = [["", "(ninguno)"]].concat(F_ORDER.map(k => [k, k]));
+
+  row("Tipo", bind(mkSel([["field", "Campo con datos"], ["banner", "Título gris"], ["text", "Texto fijo"], ["grid", "Cuadrícula en blanco"]], b.t), "t", "str", true));
+  if (b.t === "field") {
+    row("Rótulo", bind(mkTxt(b.label), "label", "str"));
+    row("Campo (dato que se imprime)", bind(mkSel(keyOpts, b.key), "key", "str"));
+    row("Estilo", bind(mkSel([["box", "Caja (rótulo arriba)"], ["side", "Lateral (rótulo a la izquierda)"]], b.st), "st", "str", true));
+    if (b.st === "side") row("Ancho del rótulo (mm)", bind(mkNum(b.lw), "lw", "num"));
+    else row("Fecha/hora en la cabecera (campo)", bind(mkSel(keyOpts, b.dk), "dk", "str"));
+    chk("Sombreado gris (lateral)", "shade"); chk("Letra en negrita", "bold"); chk("Rótulo amarillo", "caution"); chk("Con borde", "border");
+  } else if (b.t === "banner" || b.t === "text") {
+    row("Texto", bind(mkTxt(b.label), "label", "str"));
+    chk("Letra en negrita", "bold");
+  } else if (b.t === "grid") {
+    row("Anchos de columnas (proporciones, separadas por coma)", bind(mkTxt(b.cw), "cw", "str"));
+    row("Alturas de filas (proporciones, separadas por coma)", bind(mkTxt(b.rh), "rh", "str"));
+  }
+  if (b.t !== "grid") row("Tamaño de letra (pt)", bind(mkNum(b.fs), "fs", "num"));
+  const two = document.createElement("div"); two.className = "two"; P.appendChild(two);
+  [["x", "X (mm)"], ["y", "Y (mm)"], ["w", "Ancho (mm)"], ["h", "Alto (mm)"]].forEach(([p, lab]) => {
+    const l = document.createElement("label"); l.className = "pf"; const i = mkNum(b[p]); i.dataset.geom = p; bind(i, p, "num");
+    l.append(psEl("span", "", lab), i); two.appendChild(l);
+  });
+  const btns = document.createElement("div"); btns.className = "btns"; P.appendChild(btns);
+  const dup = psEl("button", "", "Duplicar"); dup.type = "button"; dup.addEventListener("click", dupBlock);
+  const del = psEl("button", "danger", "Eliminar"); del.type = "button"; del.addEventListener("click", delBlock);
+  btns.append(dup, del);
+}
+function syncGeom(b) {
+  document.querySelectorAll("#edPanel input[data-geom]").forEach(i => { i.value = b[i.dataset.geom]; });
+}
+function dupBlock() {
+  const b = edSel && blk(edSel); if (!b) return;
+  const c = Object.assign({}, b, { id: lid(), x: b.x + 3, y: b.y + 3 });
+  LAYOUT.blocks.push(c); commit(); edSel = c.id; edRender();
+}
+function delBlock() {
+  if (!edSel) return;
+  LAYOUT.blocks = LAYOUT.blocks.filter(b => b.id !== edSel);
+  edSel = null; commit(); edRender();
+}
+function addBlock(t) {
+  const o = { field: { w: 50, h: 12, label: "NUEVO", key: "" }, banner: { w: 60, h: 7, label: "TÍTULO", fs: 13, border: false },
+    text: { w: 50, h: 6, label: "Texto", border: false }, grid: { w: 80, h: 30, cw: "1,1,1,1", rh: "1,1,2" } }[t];
+  const b = B(edPage, t, 20, 20, o.w, o.h, o);
+  LAYOUT.blocks.push(b); commit(); edSel = b.id; edRender();
+}
+function undoEd() {
+  if (!undoStack.length) return;
+  lastSaved = undoStack.pop(); LAYOUT = JSON.parse(lastSaved); saveLayout();
+  if (edPage >= LAYOUT.pages) edPage = LAYOUT.pages - 1;
+  if (edSel && !blk(edSel)) edSel = null;
+  edRender();
+}
+function openEditor() {
+  const F = MODES.flights;
+  edRec = null;
+  if (mode === "flights") {
+    if (currentId && !$("#main").classList.contains("is-empty")) edRec = collectForm(F);
+    else if (F.db.length) edRec = F.db.slice().sort((a, b) => F.listSort(a, b))[0];
+  }
+  $("#ed").hidden = false;
+  document.body.style.overflow = "hidden";
+  edPage = Math.min(edPage, LAYOUT.pages - 1); edSel = null;
+  edRender();
+}
+function closeEditor() { $("#ed").hidden = true; document.body.style.overflow = ""; }
+
+// Arrastrar y cambiar tamaño
+$("#edCanvas").addEventListener("pointerdown", e => {
+  const el = e.target.closest(".lb");
+  if (!el) { if (edSel) { edSel = null; markSel(); edPanel(); } return; }
+  const b = blk(el.dataset.id);
+  if (!b) return;
+  const resizing = e.target.classList.contains("rz");
+  if (edSel !== b.id) selectBlock(b.id);
+  const target = $('#edPageWrap .lb[data-id="' + b.id + '"]');
+  const px = target.parentNode.getBoundingClientRect().width / 210;
+  const sx = e.clientX, sy = e.clientY, ox = b.x, oy = b.y, ow = b.w, oh = b.h;
+  e.preventDefault();
+  const mv = ev => {
+    const dx = (ev.clientX - sx) / px, dy = (ev.clientY - sy) / px;
+    if (resizing) { b.w = Math.max(3, snapMm(ow + dx)); b.h = Math.max(3, snapMm(oh + dy)); }
+    else { b.x = snapMm(ox + dx); b.y = snapMm(oy + dy); }
+    applyGeom(target, b); syncGeom(b);
+  };
+  const up = () => { window.removeEventListener("pointermove", mv); checkOver(target); commit(); };
+  window.addEventListener("pointermove", mv);
+  window.addEventListener("pointerup", up, { once: true });
+});
+document.addEventListener("keydown", e => {
+  if ($("#ed").hidden) return;
+  const tag = (e.target.tagName || "").toLowerCase();
+  const typing = tag === "input" || tag === "textarea" || tag === "select";
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !typing) { e.preventDefault(); undoEd(); return; }
+  if (typing) return;
+  const b = edSel && blk(edSel);
+  if (!b) return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") { e.preventDefault(); dupBlock(); return; }
+  if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); delBlock(); return; }
+  const st = e.shiftKey ? 5 : 0.5;
+  const mvK = { ArrowLeft: [-st, 0], ArrowRight: [st, 0], ArrowUp: [0, -st], ArrowDown: [0, st] }[e.key];
+  if (mvK) {
+    e.preventDefault(); b.x += mvK[0]; b.y += mvK[1];
+    const el = $('#edPageWrap .lb[data-id="' + b.id + '"]'); if (el) applyGeom(el, b);
+    syncGeom(b); commit();
+  }
+});
+
+function printWith(rec) {
+  const sheet = $("#printSheet");
+  sheet.className = "layout";
+  sheet.textContent = "";
+  for (let i = 0; i < LAYOUT.pages; i++) sheet.appendChild(renderPageEl(i, rec, false));
   const old = document.title;
   document.title = [rec.FLT_NUM, (rec.DEP && rec.ARR) ? rec.DEP + "-" + rec.ARR : "", rec.DATE].filter(Boolean).join("_") || "vuelo";
   const restore = () => { document.title = old; window.removeEventListener("afterprint", restore); };
@@ -1247,6 +1585,7 @@ function printFlight() {
   window.print();
   setTimeout(() => { if (document.title !== old) document.title = old; }, 60000);
 }
+function printFlight() { printWith(collectForm(MODES.flights)); }
 
 /* ====================================================================
    EVENTOS
@@ -1265,6 +1604,35 @@ $("#btnNew").addEventListener("click", () => guard(newRecord));
 $("#btnSave").addEventListener("click", saveForm);
 $("#btnDelete").addEventListener("click", deleteRecord);
 $("#btnPdf").addEventListener("click", printFlight);
+$("#btnLayout").addEventListener("click", openEditor);
+$("#edClose").addEventListener("click", closeEditor);
+$("#edAddPage").addEventListener("click", () => { LAYOUT.pages++; edPage = LAYOUT.pages - 1; edSel = null; commit(); edRender(); });
+$("#edAddField").addEventListener("click", () => addBlock("field"));
+$("#edAddBanner").addEventListener("click", () => addBlock("banner"));
+$("#edAddText").addEventListener("click", () => addBlock("text"));
+$("#edAddGrid").addEventListener("click", () => addBlock("grid"));
+$("#edUndo").addEventListener("click", undoEd);
+$("#edZoom").addEventListener("input", e => { edZoom = parseFloat(e.target.value) || 1; edRender(); });
+$("#edPreview").addEventListener("click", () => printWith(edRec || {}));
+$("#edExport").addEventListener("click", () => sendFile("diseno_pdf.json", "application/json", JSON.stringify(LAYOUT, null, 2)));
+$("#edImport").addEventListener("click", () => $("#edFile").click());
+$("#edFile").addEventListener("change", e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const o = JSON.parse(String(r.result));
+      if (!validLayout(o)) throw new Error("x");
+      if (!confirm("¿Reemplazar el diseño actual por el del archivo?")) return;
+      LAYOUT = o; commit(); edPage = 0; edSel = null; edRender();
+    } catch (err) { alert("Ese archivo no es un diseño válido."); }
+  };
+  r.readAsText(f); e.target.value = "";
+});
+$("#edReset").addEventListener("click", () => {
+  if (!confirm("¿Volver al diseño original? Se pierden tus cambios del diseño (puedes deshacer con Ctrl+Z mientras no cierres la página).")) return;
+  LAYOUT = defaultLayout(); commit(); edPage = 0; edSel = null; edRender();
+});
 $("#btnBack").addEventListener("click", () => guard(() => {
   $("#app").classList.remove("show-form");
   currentId = null;
