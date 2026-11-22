@@ -116,19 +116,19 @@ dialog .stack{display:flex;flex-direction:column;gap:10px}
 /* ---- Páginas del PDF (se usan en el editor y al imprimir) ---- */
 .lpage{position:relative;width:calc(var(--u)*210);height:calc(var(--u)*297);background:#fff;color:#000;font-family:Helvetica,Arial,sans-serif;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .lb{position:absolute;box-sizing:border-box;line-height:1.25;overflow:hidden;display:flex}
-.lb.bd{border:calc(var(--u)*.25) solid #000}
+.lb.bd{border:var(--bw,calc(var(--u)*.25)) solid #000}
 .lb-hd{display:flex;justify-content:space-between;align-items:center;padding:calc(var(--u)*.3) calc(var(--u)*1.2);font-size:.85em;gap:calc(var(--u)*2)}
-.lb-hd.line{border-bottom:calc(var(--u)*.25) solid #000}
+.lb-hd.line{border-bottom:var(--bw,calc(var(--u)*.25)) solid #000}
 .lb-chip{background:#d9d9d9;padding:0 calc(var(--u)*2);font-weight:700}
 .lb-l.caution{background:#ffd400;font-weight:700;padding:0 calc(var(--u)*1.2)}
-.lb-val{flex:1;padding:calc(var(--u)*.6) calc(var(--u)*1.4);white-space:pre-wrap;overflow-wrap:anywhere;overflow:hidden;min-height:0}
-.lb-k{border-right:calc(var(--u)*.25) solid #000;padding:0 calc(var(--u)*1.2);font-weight:700;display:flex;align-items:center;flex:none}
+.lb-val{display:flex;flex-direction:column;flex:1;padding:calc(var(--u)*.6) calc(var(--u)*1.4);white-space:pre-wrap;overflow-wrap:anywhere;overflow:hidden;min-height:0}
+.lb-k{border-right:var(--bw,calc(var(--u)*.25)) solid #000;padding:0 calc(var(--u)*1.2);font-weight:700;display:flex;align-items:center;flex:none}
 .lb-v{flex:1;padding:0 calc(var(--u)*1.4);display:flex;align-items:center;white-space:pre-wrap;overflow:hidden;overflow-wrap:anywhere;min-width:0}
 .lb-v.shade{background:#d9d9d9;font-weight:700;justify-content:center;text-align:center}
 .lb-banner{background:#d9d9d9;font-weight:700;letter-spacing:.25em;align-items:center;padding:0 calc(var(--u)*2)}
 .lb-text{align-items:flex-start;white-space:pre-wrap}
-.lb-grid{display:grid;border-top:calc(var(--u)*.25) solid #000;border-left:calc(var(--u)*.25) solid #000}
-.lb-grid .cell{border-right:calc(var(--u)*.25) solid #000;border-bottom:calc(var(--u)*.25) solid #000}
+.lb-grid{display:grid;border-top:var(--bw,calc(var(--u)*.25)) solid #000;border-left:var(--bw,calc(var(--u)*.25)) solid #000}
+.lb-grid .cell{border-right:var(--bw,calc(var(--u)*.25)) solid #000;border-bottom:var(--bw,calc(var(--u)*.25)) solid #000}
 .ph{color:#aaa}
 .bold{font-weight:700}
 
@@ -1252,7 +1252,7 @@ const LKEY = "pdf_layout_v1";
 const lid = () => "b" + Math.random().toString(36).slice(2, 8);
 function B(page, t, x, y, w, h, o) {
   return Object.assign({ id: lid(), page, t, x, y, w, h, st: "box", label: "", key: "", dk: "", fs: 7.5, lw: 0,
-    shade: false, bold: false, caution: false, border: true, cw: "", rh: "" }, o || {});
+    shade: false, bold: false, caution: false, border: true, cw: "", rh: "", ha: "", va: "", lha: "", lfs: 0, bg: "", tc: "", bw: 0.25, it: false }, o || {});
 }
 function defaultLayout() {
   const L = LABELS_A, bl = [];
@@ -1336,6 +1336,12 @@ function renderBlock(b, rec, edit) {
   applyGeom(d, b);
   d.style.fontSize = lu((b.fs || 7.5) * 0.3528);
   if (b.bold && b.t !== "field") d.style.fontWeight = "700";
+  if (b.it) d.style.fontStyle = "italic";
+  if (b.tc) d.style.color = b.tc;
+  if (b.bg) d.style.background = b.bg;
+  d.style.setProperty("--bw", lu(b.bw == null ? 0.25 : b.bw));
+  const MH = { left: "flex-start", center: "center", right: "flex-end" }, MV = { top: "flex-start", middle: "center", bottom: "flex-end" };
+  const lfs = b.lfs ? lu(b.lfs * 0.3528) : "";
   const val = k => { if (!k || !rec) return ""; const v = rec[k]; return isISO(v) ? fmtLong(v) : (v || ""); };
   const addText = (el, txt, key) => {
     if (txt) el.textContent = txt;
@@ -1347,23 +1353,35 @@ function renderBlock(b, rec, edit) {
       if (b.label || b.lw) {
         const k = document.createElement("div"); k.className = "lb-k"; k.style.width = lu(b.lw || 12); k.textContent = b.label;
         if (b.caution) k.style.background = "#ffd400";
+        if (lfs) k.style.fontSize = lfs;
+        if (b.lha) k.style.justifyContent = MH[b.lha];
         d.appendChild(k);
       }
       const v = document.createElement("div"); v.className = "lb-v" + (b.shade ? " shade" : "") + (b.bold ? " bold" : "");
+      v.style.justifyContent = b.ha ? MH[b.ha] : (b.shade ? "center" : "flex-start");
+      v.style.alignItems = b.va ? MV[b.va] : "center";
+      v.style.textAlign = b.ha || (b.shade ? "center" : "left");
       addText(v, val(b.key), b.key); d.appendChild(v);
     } else {
       d.style.flexDirection = "column";
       if (b.label || b.dk) {
         const hd = document.createElement("div"); hd.className = "lb-hd" + (b.dk ? " line" : "");
+        if (lfs) hd.style.fontSize = lfs;
+        if (b.lha && !b.dk) hd.style.justifyContent = MH[b.lha];
         const l = document.createElement("span"); l.className = "lb-l" + (b.caution ? " caution" : ""); l.textContent = b.label; hd.appendChild(l);
         if (b.dk) { const c = document.createElement("b"); c.className = "lb-chip"; addText(c, val(b.dk), b.dk); hd.appendChild(c); }
         d.appendChild(hd);
       }
       const v = document.createElement("div"); v.className = "lb-val" + (b.bold ? " bold" : "");
+      v.style.justifyContent = b.va ? MV[b.va] : "flex-start";
+      v.style.textAlign = b.ha || "left";
       addText(v, val(b.key), b.key); d.appendChild(v);
     }
   } else if (b.t === "banner" || b.t === "text") {
     d.textContent = b.label || "";
+    d.style.justifyContent = b.ha ? MH[b.ha] : "flex-start";
+    d.style.alignItems = b.va ? MV[b.va] : (b.t === "banner" ? "center" : "flex-start");
+    d.style.textAlign = b.ha || "left";
   } else if (b.t === "grid") {
     const cw = nums(b.cw), rh = nums(b.rh);
     const cols = cw.length ? cw : [1], rows = rh.length ? rh : [1];
@@ -1481,7 +1499,35 @@ function edPanel() {
     row("Anchos de columnas (proporciones, separadas por coma)", bind(mkTxt(b.cw), "cw", "str"));
     row("Alturas de filas (proporciones, separadas por coma)", bind(mkTxt(b.rh), "rh", "str"));
   }
-  if (b.t !== "grid") row("Tamaño de letra (pt)", bind(mkNum(b.fs), "fs", "num"));
+  if (b.t !== "grid") {
+    row("Tamaño de letra (pt)", bind(mkNum(b.fs), "fs", "num"));
+    const hA = [["", "Automática"], ["left", "Izquierda"], ["center", "Centro"], ["right", "Derecha"]];
+    const vA = [["", "Automática"], ["top", "Arriba"], ["middle", "Centro"], ["bottom", "Abajo"]];
+    const al = document.createElement("div"); al.className = "two"; P.appendChild(al);
+    const l1 = document.createElement("label"); l1.className = "pf"; l1.append(psEl("span", "", "Texto: horizontal"), bind(mkSel(hA, b.ha || ""), "ha", "str")); al.appendChild(l1);
+    const l2 = document.createElement("label"); l2.className = "pf"; l2.append(psEl("span", "", "Texto: vertical"), bind(mkSel(vA, b.va || ""), "va", "str")); al.appendChild(l2);
+    if (b.t === "field") {
+      const al2 = document.createElement("div"); al2.className = "two"; P.appendChild(al2);
+      const l3 = document.createElement("label"); l3.className = "pf"; l3.append(psEl("span", "", "Rótulo: horizontal"), bind(mkSel(hA, b.lha || ""), "lha", "str")); al2.appendChild(l3);
+      const l4 = document.createElement("label"); l4.className = "pf"; l4.append(psEl("span", "", "Rótulo: tamaño (pt)"), bind(mkNum(b.lfs || 0), "lfs", "num")); al2.appendChild(l4);
+    }
+    chk("Letra cursiva", "it");
+  }
+  const colorRow = (lab, prop, def) => {
+    const l = document.createElement("label"); l.className = "chk";
+    const c = document.createElement("input"); c.type = "checkbox"; c.checked = !!b[prop];
+    const col = document.createElement("input"); col.type = "color"; col.value = b[prop] || def; col.style.cssText = "width:36px;height:26px;padding:0;border:1px solid var(--line)";
+    c.addEventListener("change", () => { b[prop] = c.checked ? col.value : ""; refreshBlock(b); commit(); });
+    col.addEventListener("input", () => { c.checked = true; b[prop] = col.value; refreshBlock(b); });
+    col.addEventListener("change", commit);
+    l.append(c, document.createTextNode(lab + " "), col); P.appendChild(l);
+  };
+  colorRow("Color de fondo", "bg", "#d9d9d9");
+  if (b.t !== "grid") colorRow("Color de texto", "tc", "#000000");
+  if (b.t === "field" || b.t === "grid") {
+    const bwSel = mkSel([["0.15", "Fino"], ["0.25", "Normal"], ["0.5", "Grueso"], ["1", "Muy grueso"]], String(b.bw == null ? 0.25 : b.bw));
+    row("Grosor del borde", bind(bwSel, "bw", "num"));
+  }
   const two = document.createElement("div"); two.className = "two"; P.appendChild(two);
   [["x", "X (mm)"], ["y", "Y (mm)"], ["w", "Ancho (mm)"], ["h", "Alto (mm)"]].forEach(([p, lab]) => {
     const l = document.createElement("label"); l.className = "pf"; const i = mkNum(b[p]); i.dataset.geom = p; bind(i, p, "num");
