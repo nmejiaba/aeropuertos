@@ -103,7 +103,7 @@ legend{font-weight:700;padding:0 6px;color:var(--accent)}
 #toast{
   position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);
   background:#14202e;color:#fff;padding:10px 16px;border-radius:999px;font-size:15px;opacity:0;pointer-events:none;
-  transition:opacity .2s;z-index:10;max-width:90vw;text-align:center
+  transition:opacity .2s;z-index:30;max-width:90vw;text-align:center
 }
 #toast.show{opacity:1}
 dialog{border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--ink);padding:18px;max-width:420px;width:calc(100% - 32px)}
@@ -129,6 +129,8 @@ dialog .stack{display:flex;flex-direction:column;gap:10px}
 .lb-text{align-items:flex-start;white-space:pre-wrap}
 .lb-grid{display:grid;border-top:var(--bw,calc(var(--u)*.25)) solid #000;border-left:var(--bw,calc(var(--u)*.25)) solid #000}
 .lb-grid .cell{border-right:var(--bw,calc(var(--u)*.25)) solid #000;border-bottom:var(--bw,calc(var(--u)*.25)) solid #000}
+.lb-image img{width:100%;height:100%;display:block}
+.lb-image .imgph{margin:auto;color:#888}
 .ph{color:#aaa}
 .bold{font-weight:700}
 
@@ -277,6 +279,7 @@ dialog .stack{display:flex;flex-direction:column;gap:10px}
     <button id="edAddBanner" type="button">+ Título</button>
     <button id="edAddText" type="button">+ Texto</button>
     <button id="edAddGrid" type="button">+ Cuadrícula</button>
+    <button id="edAddImage" type="button">+ Imagen</button>
     <span class="sep"></span>
     <button id="edUndo" type="button">Deshacer</button>
     <label style="font-size:13px;display:flex;align-items:center;gap:6px">Zoom <input id="edZoom" type="range" min="0.5" max="1.8" step="0.1" value="1"></label>
@@ -294,6 +297,7 @@ dialog .stack{display:flex;flex-direction:column;gap:10px}
   </div>
 </div>
 <input type="file" id="edFile" accept=".json,application/json" hidden>
+<input type="file" id="edImg" accept="image/*,.jpg,.jpeg,.png,.gif,.webp,.svg" hidden>
 <div id="printSheet"></div>
 
 <div id="toast"></div>
@@ -384,7 +388,9 @@ const SECTIONS_A = [
     { k: "CCI_ARR", t: "area", caution: true  },
     { sub: "Ground Operations" },
     { k: "FREQ", t: "text" },
-    { k: "CCI_PARK", t: "area" }, { k: "CCI_RETI", t: "area" }, { k: "CCI_GNDOPS", t: "area" },
+    { k: "CCI_PARK", t: "area" },
+    { k: "CCI_RETI", t: "select", opts: ["YES", "NO", "CONDI"] },
+    { k: "CCI_GNDOPS", t: "area" },
     { sub: "Departure" },
     { k: "CCI_DEP", t: "area" }
   ]},
@@ -605,6 +611,7 @@ const MODES = {
       this.dateKeys.forEach(k => { if (k in r) r[k] = normDate(r[k]); });
       ["ICAO", "IATA"].forEach(k => { if (k in r) r[k] = r[k].toUpperCase(); });
       if ("CAT" in r) r.CAT = normCat(r.CAT);
+      if ("CCI_RETI" in r && /^(yes|no|condi)$/i.test(r.CCI_RETI)) r.CCI_RETI = r.CCI_RETI.toUpperCase();
     }
   }
 };
@@ -1252,7 +1259,7 @@ const LKEY = "pdf_layout_v1";
 const lid = () => "b" + Math.random().toString(36).slice(2, 8);
 function B(page, t, x, y, w, h, o) {
   return Object.assign({ id: lid(), page, t, x, y, w, h, st: "box", label: "", key: "", dk: "", fs: 7.5, lw: 0,
-    shade: false, bold: false, caution: false, border: true, cw: "", rh: "", ha: "", va: "", lha: "", lfs: 0, bg: "", tc: "", bw: 0.25, it: false }, o || {});
+    shade: false, bold: false, caution: false, border: true, cw: "", rh: "", ha: "", va: "", lha: "", lfs: 0, bg: "", tc: "", bw: 0.25, it: false, src: "", fit: "contain" }, o || {});
 }
 function defaultLayout() {
   const L = LABELS_A, bl = [];
@@ -1320,10 +1327,13 @@ function loadLayout() {
 let LAYOUT = loadLayout();
 let lastSaved = JSON.stringify(LAYOUT);
 let undoStack = [];
-function saveLayout() { try { localStorage.setItem(LKEY, JSON.stringify(LAYOUT)); } catch (e) {} }
+function saveLayout() {
+  try { localStorage.setItem(LKEY, JSON.stringify(LAYOUT)); return true; }
+  catch (e) { toast("No cabe en la memoria del navegador: usa imágenes más pequeñas o quita alguna. Exporta el diseño para no perderlo."); return false; }
+}
 function commit() {
   const now = JSON.stringify(LAYOUT);
-  if (now !== lastSaved) { undoStack.push(lastSaved); if (undoStack.length > 60) undoStack.shift(); lastSaved = now; saveLayout(); }
+  if (now !== lastSaved) { undoStack.push(lastSaved); if (undoStack.length > 25) undoStack.shift(); lastSaved = now; saveLayout(); }
 }
 const blk = id => LAYOUT.blocks.find(b => b.id === id);
 const lu = n => "calc(var(--u)*" + n + ")";
@@ -1331,7 +1341,7 @@ const nums = s => String(s || "").split(",").map(Number).filter(n => n > 0);
 
 function renderBlock(b, rec, edit) {
   const d = document.createElement("div");
-  d.className = "lb lb-" + b.t + ((b.border && (b.t === "field")) ? " bd" : "");
+  d.className = "lb lb-" + b.t + ((b.border && (b.t === "field" || b.t === "image")) ? " bd" : "");
   d.dataset.id = b.id;
   applyGeom(d, b);
   d.style.fontSize = lu((b.fs || 7.5) * 0.3528);
@@ -1382,6 +1392,9 @@ function renderBlock(b, rec, edit) {
     d.style.justifyContent = b.ha ? MH[b.ha] : "flex-start";
     d.style.alignItems = b.va ? MV[b.va] : (b.t === "banner" ? "center" : "flex-start");
     d.style.textAlign = b.ha || "left";
+  } else if (b.t === "image") {
+    if (b.src) { const im = document.createElement("img"); im.src = b.src; im.alt = ""; im.style.objectFit = b.fit || "contain"; d.appendChild(im); }
+    else { const ph = document.createElement("div"); ph.className = "imgph"; ph.textContent = "Imagen"; d.appendChild(ph); }
   } else if (b.t === "grid") {
     const cw = nums(b.cw), rh = nums(b.rh);
     const cols = cw.length ? cw : [1], rows = rh.length ? rh : [1];
@@ -1484,7 +1497,7 @@ function edPanel() {
   const chk = (lab, prop) => { const l = document.createElement("label"); l.className = "chk"; const c = document.createElement("input"); c.type = "checkbox"; c.checked = !!b[prop]; l.append(c, document.createTextNode(lab)); bind(c, prop, "chk"); P.appendChild(l); };
   const keyOpts = [["", "(ninguno)"]].concat(F_ORDER.map(k => [k, k]));
 
-  row("Tipo", bind(mkSel([["field", "Campo con datos"], ["banner", "Título gris"], ["text", "Texto fijo"], ["grid", "Cuadrícula en blanco"]], b.t), "t", "str", true));
+  row("Tipo", bind(mkSel([["field", "Campo con datos"], ["banner", "Título gris"], ["text", "Texto fijo"], ["grid", "Cuadrícula en blanco"], ["image", "Imagen"]], b.t), "t", "str", true));
   if (b.t === "field") {
     row("Rótulo", bind(mkTxt(b.label), "label", "str"));
     row("Campo (dato que se imprime)", bind(mkSel(keyOpts, b.key), "key", "str"));
@@ -1499,7 +1512,15 @@ function edPanel() {
     row("Anchos de columnas (proporciones, separadas por coma)", bind(mkTxt(b.cw), "cw", "str"));
     row("Alturas de filas (proporciones, separadas por coma)", bind(mkTxt(b.rh), "rh", "str"));
   }
-  if (b.t !== "grid") {
+  if (b.t === "image") {
+    row("Ajuste de la imagen", bind(mkSel([["contain", "Entera (sin recortar)"], ["cover", "Rellenar (recorta)"], ["fill", "Estirar"]], b.fit || "contain"), "fit", "str"));
+    chk("Con borde", "border");
+    const rb = psEl("button", "", b.src ? "Cambiar imagen…" : "Elegir imagen…"); rb.type = "button";
+    rb.addEventListener("click", () => { pendingImg = b.id; $("#edImg").click(); });
+    P.appendChild(rb);
+    P.appendChild(psEl("p", "", "Mantén Shift al cambiar el tamaño para conservar la proporción."));
+  }
+  if (b.t !== "grid" && b.t !== "image") {
     row("Tamaño de letra (pt)", bind(mkNum(b.fs), "fs", "num"));
     const hA = [["", "Automática"], ["left", "Izquierda"], ["center", "Centro"], ["right", "Derecha"]];
     const vA = [["", "Automática"], ["top", "Arriba"], ["middle", "Centro"], ["bottom", "Abajo"]];
@@ -1523,8 +1544,8 @@ function edPanel() {
     l.append(c, document.createTextNode(lab + " "), col); P.appendChild(l);
   };
   colorRow("Color de fondo", "bg", "#d9d9d9");
-  if (b.t !== "grid") colorRow("Color de texto", "tc", "#000000");
-  if (b.t === "field" || b.t === "grid") {
+  if (b.t !== "grid" && b.t !== "image") colorRow("Color de texto", "tc", "#000000");
+  if (b.t === "field" || b.t === "grid" || b.t === "image") {
     const bwSel = mkSel([["0.15", "Fino"], ["0.25", "Normal"], ["0.5", "Grueso"], ["1", "Muy grueso"]], String(b.bw == null ? 0.25 : b.bw));
     row("Grosor del borde", bind(bwSel, "bw", "num"));
   }
@@ -1551,11 +1572,44 @@ function delBlock() {
   LAYOUT.blocks = LAYOUT.blocks.filter(b => b.id !== edSel);
   edSel = null; commit(); edRender();
 }
+function addImageBlock(file, replaceId) {
+  readImage(file, (src, w, h) => {
+    if (replaceId && blk(replaceId)) {
+      const b = blk(replaceId); b.src = src;
+      b.h = Math.round(b.w * h / w * 2) / 2;
+      commit(); edRender(); return;
+    }
+    const wmm = 50, b = B(edPage, "image", 20, 20, wmm, Math.round(wmm * h / w * 2) / 2, { src, border: false });
+    LAYOUT.blocks.push(b); commit(); edSel = b.id; edRender();
+  });
+}
 function addBlock(t) {
   const o = { field: { w: 50, h: 12, label: "NUEVO", key: "" }, banner: { w: 60, h: 7, label: "TÍTULO", fs: 13, border: false },
     text: { w: 50, h: 6, label: "Texto", border: false }, grid: { w: 80, h: 30, cw: "1,1,1,1", rh: "1,1,2" } }[t];
   const b = B(edPage, t, 20, 20, o.w, o.h, o);
   LAYOUT.blocks.push(b); commit(); edSel = b.id; edRender();
+}
+let pendingImg = null;
+// Reduce la imagen (máx. 1400 px) para que quepa en la memoria del navegador
+function readImage(file, cb) {
+  const fr = new FileReader();
+  fr.onload = () => {
+    const im = new Image();
+    im.onload = () => {
+      const max = 1400, sc = Math.min(1, max / Math.max(im.naturalWidth, im.naturalHeight));
+      const w = Math.max(1, Math.round(im.naturalWidth * sc)), h = Math.max(1, Math.round(im.naturalHeight * sc));
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      const g = c.getContext("2d");
+      const jpeg = /jpe?g/i.test(file.type);
+      if (jpeg) { g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); }
+      g.drawImage(im, 0, 0, w, h);
+      cb(c.toDataURL(jpeg ? "image/jpeg" : "image/png", 0.88), w, h);
+    };
+    im.onerror = () => alert("No se pudo leer esa imagen. Prueba con JPG o PNG.");
+    im.src = String(fr.result);
+  };
+  fr.onerror = () => alert("No se pudo leer el archivo.");
+  fr.readAsDataURL(file);
 }
 function undoEd() {
   if (!undoStack.length) return;
@@ -1592,7 +1646,10 @@ $("#edCanvas").addEventListener("pointerdown", e => {
   e.preventDefault();
   const mv = ev => {
     const dx = (ev.clientX - sx) / px, dy = (ev.clientY - sy) / px;
-    if (resizing) { b.w = Math.max(3, snapMm(ow + dx)); b.h = Math.max(3, snapMm(oh + dy)); }
+    if (resizing) {
+      b.w = Math.max(3, snapMm(ow + dx)); b.h = Math.max(3, snapMm(oh + dy));
+      if (b.t === "image" && ev.shiftKey) b.h = Math.max(3, snapMm(b.w * oh / ow));
+    }
     else { b.x = snapMm(ox + dx); b.y = snapMm(oy + dy); }
     applyGeom(target, b); syncGeom(b);
   };
@@ -1657,6 +1714,13 @@ $("#edAddField").addEventListener("click", () => addBlock("field"));
 $("#edAddBanner").addEventListener("click", () => addBlock("banner"));
 $("#edAddText").addEventListener("click", () => addBlock("text"));
 $("#edAddGrid").addEventListener("click", () => addBlock("grid"));
+$("#edAddImage").addEventListener("click", () => { pendingImg = null; $("#edImg").click(); });
+$("#edImg").addEventListener("change", e => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  const id = pendingImg; pendingImg = null;
+  addImageBlock(f, id);
+});
 $("#edUndo").addEventListener("click", undoEd);
 $("#edZoom").addEventListener("input", e => { edZoom = parseFloat(e.target.value) || 1; edRender(); });
 $("#edPreview").addEventListener("click", () => printWith(edRec || {}));
