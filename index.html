@@ -72,6 +72,8 @@ fieldset{border:1px solid var(--line);border-radius:12px;background:var(--panel)
 legend{font-weight:700;padding:0 6px;color:var(--accent)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px 14px;margin-bottom:12px}
 .grid:last-child{margin-bottom:0}
+.sub{font-weight:600;font-size:15px;margin:14px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--line)}
+.sub:first-of-type{margin-top:4px}
 .fld{display:flex;flex-direction:column;gap:4px;min-width:0}
 .fld.wide{grid-column:1 / -1}
 .fld span{font-size:13px;color:var(--muted);letter-spacing:.02em}
@@ -184,13 +186,13 @@ dialog .stack{display:flex;flex-direction:column;gap:10px}
 // ---- Aeropuertos (columnas de AD_DB) ----
 const LABELS_A = {
   DATE: "DATE", ICAO: "ICAO", IATA: "IATA", CAT: "CAT",
-  DATE_CCI: "DATE CCI", DATE_AOI: "DATE AOI", CCI_ARR: "CCI ARR", FREQ: "FREQ",
-  CCI_PARK: "CCI PARK", CCI_RETI: "CCI RETI", CCI_GNDOPS: "CCI GNDOPS",
-  AOI_Taxirest: "AOI Taxi Rest", AOI_Ops: "AOI OPS", AOI_NAP: "AOI NAP",
-  AOI_Speed_ARR: "AOI Speed ARR", AOI_NAP_ARR: "AOI NAP ARR", AOI_PROC_ARR: "AOI PROC ARR",
-  CRA_ARR: "CRA ARR", CCI_DEP: "CCI DEP", AOI_Speed_DEP: "AOI Speed DEP",
-  AOI_STARTUP: "AOI Startup", AOI_PROC_DEP: "AOI PROC DEP", AOI_NAP_DEP: "AOI NAP DEP",
-  CRA_DEP: "CRA DEP", VARIOS_DEP: "VARIOS DEP", VARIOS_ARR: "VARIOS ARR"
+  DATE_CCI: "DATE_CCI", DATE_AOI: "DATE_AOI", CCI_ARR: "CCI_ARR", FREQ: "FREQ",
+  CCI_PARK: "CCI_PARK", CCI_RETI: "CCI_RETI", CCI_GNDOPS: "CCI_GNDOPS",
+  AOI_Taxirest: "AOI_Taxirest", AOI_Ops: "AOI_Ops", AOI_NAP: "AOI_NAP",
+  AOI_Speed_ARR: "AOI_Speed_ARR", AOI_NAP_ARR: "AOI_NAP_ARR", AOI_PROC_ARR: "AOI_PROC_ARR",
+  CRA_ARR: "CRA_ARR", CCI_DEP: "CCI_DEP", AOI_Speed_DEP: "AOI_Speed_DEP",
+  AOI_STARTUP: "AOI_STARTUP", AOI_PROC_DEP: "AOI_PROC_DEP", AOI_NAP_DEP: "AOI_NAP_DEP",
+  CRA_DEP: "CRA_DEP", VARIOS_DEP: "VARIOS_DEP", VARIOS_ARR: "VARIOS_ARR"
 };
 
 // ---- Vuelos (columnas de FLIGHT_DB) ----
@@ -245,26 +247,43 @@ const SNAP_KEYS = SNAP_DEP.concat(SNAP_ARR).map(p => p[0]);
 /* ---- Pantallas: cómo se agrupan los campos. t: text | date | select | area | icao | reg ---- */
 const SECTIONS_A = [
   { title: "Identificación", items: [
+    { k: "DATE", t: "date" }
+  ]},
+  { title: "CCI", items: [
+    { sub: "Information" },
     { k: "ICAO", t: "text", upper: true },
     { k: "IATA", t: "text", upper: true },
     { k: "CAT", t: "select", opts: ["CAT A", "CAT B", "CAT C"] },
-    { k: "FREQ", t: "text" },
-    { k: "DATE", t: "date" },
     { k: "DATE_CCI", t: "date" },
-    { k: "DATE_AOI", t: "date" }
+    { sub: "Arrival" },
+    { k: "CCI_ARR", t: "area" },
+    { sub: "Ground Operations" },
+    { k: "FREQ", t: "text" },
+    { k: "CCI_PARK", t: "area" }, { k: "CCI_RETI", t: "area" }, { k: "CCI_GNDOPS", t: "area" },
+    { sub: "Departure" },
+    { k: "CCI_DEP", t: "area" }
   ]},
-  { title: "General", items: [
-    { k: "AOI_Taxirest", t: "area" }, { k: "AOI_Ops", t: "area" }, { k: "AOI_NAP", t: "area" }
+  { title: "AOI", items: [
+    { sub: "General" },
+    { k: "DATE_AOI", t: "date" },
+    { k: "AOI_Taxirest", t: "area" }, { k: "AOI_Ops", t: "area" }, { k: "AOI_NAP", t: "area" },
+    { sub: "Arrival" },
+    { k: "AOI_Speed_ARR", t: "area" }, { k: "AOI_NAP_ARR", t: "area" }, { k: "AOI_PROC_ARR", t: "area" },
+    { sub: "Departures" },
+    { k: "AOI_Speed_DEP", t: "area" }, { k: "AOI_STARTUP", t: "area" },
+    { k: "AOI_PROC_DEP", t: "area" }, { k: "AOI_NAP_DEP", t: "area" }
   ]},
-  { title: "Llegada (ARR)", items: [
-    { k: "CCI_ARR", t: "area" }, { k: "CCI_PARK", t: "area" }, { k: "CCI_RETI", t: "area" },
-    { k: "CCI_GNDOPS", t: "area" }, { k: "AOI_Speed_ARR", t: "area" }, { k: "AOI_NAP_ARR", t: "area" },
-    { k: "AOI_PROC_ARR", t: "area" }, { k: "CRA_ARR", t: "area" }, { k: "VARIOS_ARR", t: "area" }
+  { title: "Country Rules and Regulations", items: [
+    { sub: "Departure" },
+    { k: "CRA_DEP", t: "area" },
+    { sub: "Arrivals" },
+    { k: "CRA_ARR", t: "area" }
   ]},
-  { title: "Salida (DEP)", items: [
-    { k: "CCI_DEP", t: "area" }, { k: "AOI_Speed_DEP", t: "area" }, { k: "AOI_STARTUP", t: "area" },
-    { k: "AOI_PROC_DEP", t: "area" }, { k: "AOI_NAP_DEP", t: "area" }, { k: "CRA_DEP", t: "area" },
-    { k: "VARIOS_DEP", t: "area" }
+  { title: "Varios", items: [
+    { sub: "Departure" },
+    { k: "VARIOS_DEP", t: "area" },
+    { sub: "Arrivals" },
+    { k: "VARIOS_ARR", t: "area" }
   ]}
 ];
 
@@ -671,6 +690,7 @@ function buildForm(cfg) {
     fs.appendChild(lg);
     let grid = null;
     sec.items.forEach(it => {
+      if (it.sub) { grid = null; const h = document.createElement("div"); h.className = "sub"; h.textContent = it.sub; fs.appendChild(h); return; }
       if (it.info) { grid = null; fs.appendChild(makeInfoBox(it.info)); return; }
       if (!grid) { grid = document.createElement("div"); grid.className = "grid"; fs.appendChild(grid); }
       grid.appendChild(makeField(cfg, it));
