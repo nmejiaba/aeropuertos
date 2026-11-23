@@ -72,6 +72,7 @@ fieldset{border:1px solid var(--line);border-radius:12px;background:var(--panel)
 legend{font-weight:700;padding:0 6px;color:var(--accent)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px 14px;margin-bottom:12px}
 .grid:last-child{margin-bottom:0}
+.grid.firgrid{grid-template-columns:110px 1fr;align-items:start;gap:8px 14px}
 .sub{font-weight:600;font-size:15px;margin:14px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--line)}
 .sub:first-of-type{margin-top:4px}
 .fld{display:flex;flex-direction:column;gap:4px;min-width:0}
@@ -337,6 +338,11 @@ const LABELS_F = {
   ALT: "ALTERNATE (ICAO)", ALTNOTAMS: "NOTAMS", ALTWX: "WX"
 };
 
+// ---- Grupo FIR: FIR1..FIR21 y NOTAM1..NOTAM21 ----
+const FIR_N = 21;
+const FIR_KEYS = [];
+for (let i = 1; i <= FIR_N; i++) { FIR_KEYS.push("FIR" + i, "NOTAM" + i); LABELS_F["FIR" + i] = "FIR " + i; LABELS_F["NOTAM" + i] = "NOTAM " + i; }
+
 // Matrículas iniciales (las de tu hoja AVIONES). Se cargan una sola vez; luego editas la lista en la pestaña Aviones.
 const PLANES = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(c => "A6-EX" + c);
 
@@ -354,7 +360,7 @@ const F_ORDER = [
   "CCI_GNDOPS","AOI_Taxirest","AOI_Ops","AOI_NAP","AOI_Speed_ARR","AOI_NAP_ARR","AOI_PROC_ARR","CRA_ARR",
   "VARIOS_ARR","CRZ_SIGWX","CRZ_TURB","CRZ_TROPO","NOTES_DEP","NOTES_ARR","NOTES_CRZ","TRIP","BLK","FL",
   "ALT","ALTNOTAMS","ALTWX"
-];
+].concat(FIR_KEYS);
 // En tu hoja FLIGHT_DB esta columna se llama "AOI_NAP _ARR" (con espacio)
 const F_HEADER = { AOI_NAP_ARR: "AOI_NAP _ARR" };
 
@@ -465,6 +471,7 @@ const SECTIONS_F = [
     { k: "CRZ_SIGWX", t: "area" }, { k: "CRZ_TURB", t: "area" }, { k: "CRZ_TROPO", t: "area" },
     { k: "NOTES_CRZ", t: "area" }
   ]},
+  { title: "FIR", cols: "fir", items: FIR_KEYS.map((k, i) => i % 2 === 0 ? { k, t: "text", upper: true } : { k, t: "area", inline: true }) },
   { title: "Alterno", items: [
     { k: "ALT", t: "icao" },
     { k: "ALTNOTAMS", t: "area" },
@@ -583,7 +590,7 @@ const MODES = {
       F_ORDER.forEach(k => { if (k in r) r[k] = clean(r[k]); });
       FLIGHT_DATE_KEYS.forEach(k => { if (k in r) r[k] = normDate(r[k]); });
       FLIGHT_CLEAN_TIME.forEach(k => { if (k in r) r[k] = noEpoch(r[k]); });
-      ["FLT_NUM", "REG", "DEP", "ARR", "ALT"].forEach(k => { if (k in r) r[k] = r[k].toUpperCase(); });
+      ["FLT_NUM", "REG", "DEP", "ARR", "ALT"].concat(FIR_KEYS.filter((k, i) => i % 2 === 0)).forEach(k => { if (k in r) r[k] = r[k].toUpperCase(); });
       ["DEP_CAT", "ARR_CAT"].forEach(k => { if (k in r) r[k] = normCat(r[k]); });
     }
   },
@@ -748,7 +755,7 @@ function autosize(el) {
 
 function makeField(cfg, f) {
   const wrap = document.createElement("label");
-  wrap.className = "fld" + (f.t === "area" ? " wide" : "") + (f.caution ? " caution" : "");
+  wrap.className = "fld" + (f.t === "area" && !f.inline ? " wide" : "") + (f.caution ? " caution" : "");
   const span = document.createElement("span");
   span.textContent = cfg.labels[f.k] || f.k;
   let el;
@@ -824,7 +831,7 @@ function buildForm(cfg) {
     sec.items.forEach(it => {
       if (it.sub) { grid = null; const h = document.createElement("div"); h.className = "sub"; h.textContent = it.sub; fs.appendChild(h); return; }
       if (it.info) { grid = null; fs.appendChild(makeInfoBox(it.info)); return; }
-      if (!grid) { grid = document.createElement("div"); grid.className = "grid"; fs.appendChild(grid); }
+      if (!grid) { grid = document.createElement("div"); grid.className = "grid" + (sec.cols ? " " + sec.cols + "grid" : ""); fs.appendChild(grid); }
       grid.appendChild(makeField(cfg, it));
     });
     cfg.form.appendChild(fs);
@@ -1312,11 +1319,20 @@ function defaultLayout() {
   // Página 2
   const g = (y, h) => bl.push(B(1, "grid", 10, y, 190, h, { cw: "1,1,1,1,1,1,1,1", rh: "1,1.3,3.8" }));
   g(10, 40); g(54, 40); g(98, 40);
-  bl.push(B(1, "grid", 10, 146, 190, 88, { cw: "1.1,1.7,.8,1.9,.8,1.9", rh: "1,1,1,1,1,1,1,1" }));
-  bl.push(B(1, "text", 10, 238, 60, 5, { label: "ALTERNATE", border: false, fs: 8 }));
-  bl.push(B(1, "field", 10, 244, 17, 22, { key: "ALT" }));
-  bl.push(B(1, "field", 29, 244, 100, 22, { key: "ALTNOTAMS" }));
-  bl.push(B(1, "field", 131, 244, 69, 22, { key: "ALTWX" }));
+  for (let i = 0; i < FIR_N; i++) {
+    const r = Math.floor(i / 3), c = i % 3, x0 = 10 + c * (190 / 3), y0 = 146 + r * 12.5;
+    bl.push(B(1, "field", Math.round(x0 * 2) / 2, y0, 16, 12.5, { st: "side", key: "FIR" + (i + 1), fs: 9, bold: true }));
+    bl.push(B(1, "field", Math.round((x0 + 16) * 2) / 2, y0, 47.5, 12.5, { st: "side", key: "NOTAM" + (i + 1), fs: 6.5, va: "top" }));
+  }
+  for (let i = FIR_N; i < 24; i++) {
+    const r = Math.floor(i / 3), c = i % 3, x0 = 10 + c * (190 / 3), y0 = 146 + r * 12.5;
+    bl.push(B(1, "field", Math.round(x0 * 2) / 2, y0, 16, 12.5, { st: "side" }));
+    bl.push(B(1, "field", Math.round((x0 + 16) * 2) / 2, y0, 47.5, 12.5, { st: "side" }));
+  }
+  bl.push(B(1, "text", 10, 246.5, 60, 5, { label: "ALTERNATE", border: false, fs: 8 }));
+  bl.push(B(1, "field", 10, 252, 17, 22, { key: "ALT" }));
+  bl.push(B(1, "field", 29, 252, 100, 22, { key: "ALTNOTAMS" }));
+  bl.push(B(1, "field", 131, 252, 69, 22, { key: "ALTWX" }));
   return { v: 1, pages: 2, blocks: bl };
 }
 function validLayout(o) { return o && Array.isArray(o.blocks) && o.pages > 0 && o.blocks.every(b => b && b.id && typeof b.x === "number"); }
