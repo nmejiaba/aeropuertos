@@ -467,16 +467,16 @@ const SECTIONS_F = [
     { info: "ARR" },
     { k: "NOTES_ARR", t: "area" }
   ]},
-  { title: "Crucero (CRZ)", items: [
+   { title: "Crucero (CRZ)", items: [
     { k: "CRZ_SIGWX", t: "area" }, { k: "CRZ_TURB", t: "area" }, { k: "CRZ_TROPO", t: "area" },
     { k: "NOTES_CRZ", t: "area" }
   ]},
-  { title: "FIR", cols: "fir", items: FIR_KEYS.map((k, i) => i % 2 === 0 ? { k, t: "text", upper: true } : { k, t: "area", inline: true }) },
   { title: "Alterno", items: [
     { k: "ALT", t: "icao" },
     { k: "ALTNOTAMS", t: "area" },
     { k: "ALTWX", t: "area" }
-  ]}
+  ]},
+  { title: "FIR", cols: "fir", items: FIR_KEYS.map((k, i) => i % 2 === 0 ? { k, t: "text", upper: true } : { k, t: "area", inline: true }) }
 ];
 
 /* ====================================================================
