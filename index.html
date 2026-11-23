@@ -234,6 +234,7 @@ dialog .stack{display:flex;flex-direction:column;gap:10px}
         <button id="btnExport" type="button">Exportar</button>
       </div>
     </div>
+    <div style="padding:0 14px 6px"><button id="btnSync" type="button" class="ghost" style="width:100%;border:1px dashed var(--line);font-size:14px">☁ Sincronización: sin configurar</button></div>
     <div style="padding:0 14px 8px"><button id="btnLayout" type="button" class="ghost" style="width:100%;border:1px dashed var(--line)">Diseño del PDF</button></div>
     <ul id="list" class="list"></ul>
     <div class="side-foot" id="info"></div>
@@ -300,6 +301,21 @@ dialog .stack{display:flex;flex-direction:column;gap:10px}
 <input type="file" id="edFile" accept=".json,application/json" hidden>
 <input type="file" id="edImg" accept="image/*,.jpg,.jpeg,.png,.gif,.webp,.svg" hidden>
 <div id="printSheet"></div>
+
+<dialog id="dlgSync">
+  <h3>Sincronización con Google</h3>
+  <p>Pega la dirección de tu web app de Apps Script y la clave que pusiste en el script. Hazlo igual en cada dispositivo.</p>
+  <div class="stack">
+    <label style="font-size:13px">Dirección (URL de la web app)
+      <input id="syncUrl" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" style="width:100%;min-height:40px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--field)"></label>
+    <label style="font-size:13px">Clave
+      <input id="syncKey" type="password" autocomplete="off" style="width:100%;min-height:40px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--field)"></label>
+    <div id="syncMsg" style="font-size:13px;color:var(--muted)"></div>
+    <button id="syncSave" type="button" class="primary">Guardar y sincronizar</button>
+    <button id="syncOff" type="button" class="danger">Desactivar en este dispositivo</button>
+    <button id="syncClose" type="button" class="ghost">Cerrar</button>
+  </div>
+</dialog>
 
 <div id="toast"></div>
 
@@ -467,16 +483,16 @@ const SECTIONS_F = [
     { info: "ARR" },
     { k: "NOTES_ARR", t: "area" }
   ]},
-   { title: "Crucero (CRZ)", items: [
+  { title: "Crucero (CRZ)", items: [
     { k: "CRZ_SIGWX", t: "area" }, { k: "CRZ_TURB", t: "area" }, { k: "CRZ_TROPO", t: "area" },
     { k: "NOTES_CRZ", t: "area" }
   ]},
+  { title: "FIR", cols: "fir", items: FIR_KEYS.map((k, i) => i % 2 === 0 ? { k, t: "text", upper: true } : { k, t: "area", inline: true }) },
   { title: "Alterno", items: [
     { k: "ALT", t: "icao" },
     { k: "ALTNOTAMS", t: "area" },
     { k: "ALTWX", t: "area" }
-  ]},
-  { title: "FIR", cols: "fir", items: FIR_KEYS.map((k, i) => i % 2 === 0 ? { k, t: "text", upper: true } : { k, t: "area", inline: true }) }
+  ]}
 ];
 
 /* ====================================================================
@@ -941,16 +957,18 @@ function saveForm() {
   const other = cfg.db.find(r => cfg.key(r) === k && r._id !== currentId);
   if (other) {
     if (!confirm(cfg.dupMsg(rec))) return;
+    markTomb(cfg.id, other._id);
     cfg.db = cfg.db.filter(r => r._id !== other._id);
   }
   const i = currentId ? cfg.db.findIndex(r => r._id === currentId) : -1;
   if (i >= 0) {
-    cfg.db[i] = Object.assign({ _id: currentId, _t: cfg.db[i]._t || Date.now() }, rec);
+    cfg.db[i] = Object.assign({ _id: currentId, _t: cfg.db[i]._t || Date.now(), _u: Date.now() }, rec);
   } else {
     currentId = uid();
-    cfg.db.push(Object.assign({ _id: currentId, _t: Date.now() }, rec));
+    cfg.db.push(Object.assign({ _id: currentId, _t: Date.now(), _u: Date.now() }, rec));
   }
   if (!saveDB(cfg)) return;
+  markDirty(cfg.id, currentId);
   dirty = false;
   $("#formTitle").textContent = cfg.titleOf(rec);
   $("#btnDelete").style.display = "";
@@ -966,6 +984,7 @@ function deleteRecord() {
   if (!confirm("¿Eliminar " + (rec ? cfg.titleOf(rec) : "este registro") + "? No se puede deshacer.")) return;
   cfg.db = cfg.db.filter(r => r._id !== currentId);
   saveDB(cfg);
+  markTomb(cfg.id, currentId);
   currentId = null;
   dirty = false;
   $("#main").classList.add("is-empty");
@@ -1092,8 +1111,8 @@ function mergeInto(cfg, list) {
   let added = 0, updated = 0;
   byKey.forEach((r, k) => {
     const ex = cfg.db.find(x => cfg.key(x) === k);
-    if (ex) { Object.assign(ex, r); updated++; }
-    else { cfg.db.push(Object.assign(cfg.empty(), r, { _id: uid(), _t: Date.now() })); added++; }
+    if (ex) { Object.assign(ex, r); ex._u = Date.now(); markDirty(cfg.id, ex._id); updated++; }
+    else { const nid = uid(); cfg.db.push(Object.assign(cfg.empty(), r, { _id: nid, _t: Date.now(), _u: Date.now() })); markDirty(cfg.id, nid); added++; }
   });
   return { added, updated, dupes, skipped };
 }
@@ -1349,7 +1368,11 @@ function saveLayout() {
 }
 function commit() {
   const now = JSON.stringify(LAYOUT);
-  if (now !== lastSaved) { undoStack.push(lastSaved); if (undoStack.length > 25) undoStack.shift(); lastSaved = now; saveLayout(); }
+  if (now !== lastSaved) {
+    undoStack.push(lastSaved); if (undoStack.length > 25) undoStack.shift();
+    LAYOUT.u = Date.now(); lastSaved = JSON.stringify(LAYOUT); saveLayout();
+    lsSet("sync_layout_dirty", true); syncSoon();
+  }
 }
 const blk = id => LAYOUT.blocks.find(b => b.id === id);
 const lu = n => "calc(var(--u)*" + n + ")";
@@ -1629,7 +1652,8 @@ function readImage(file, cb) {
 }
 function undoEd() {
   if (!undoStack.length) return;
-  lastSaved = undoStack.pop(); LAYOUT = JSON.parse(lastSaved); saveLayout();
+  lastSaved = undoStack.pop(); LAYOUT = JSON.parse(lastSaved); LAYOUT.u = Date.now(); lastSaved = JSON.stringify(LAYOUT); saveLayout();
+  lsSet("sync_layout_dirty", true); syncSoon();
   if (edPage >= LAYOUT.pages) edPage = LAYOUT.pages - 1;
   if (edSel && !blk(edSel)) edSel = null;
   edRender();
@@ -1705,6 +1729,176 @@ function printWith(rec) {
   setTimeout(() => { if (document.title !== old) document.title = old; }, 60000);
 }
 function printFlight() { printWith(collectForm(MODES.flights)); }
+
+
+/* ====================================================================
+   SINCRONIZACIÓN CON GOOGLE (Apps Script)
+   ==================================================================== */
+const SYNC_COLS = ["airports", "flights", "planes"];
+function lsGet(k, d) { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+const syncCfg = () => { const c = lsGet("sync_cfg", null); return c && c.url && c.key ? c : null; };
+let syncing = false, syncQueued = false, syncTimer = null;
+
+function markDirty(col, id) {
+  const d = lsGet("sync_dirty", {});
+  d[col] = d[col] || [];
+  if (!d[col].includes(id)) d[col].push(id);
+  lsSet("sync_dirty", d);
+  syncSoon();
+}
+function markTomb(col, id, minU) {
+  const t = lsGet("sync_tomb", {});
+  t[col] = t[col] || {};
+  t[col][id] = Math.max(Date.now(), (minU || 0) + 1);
+  lsSet("sync_tomb", t);
+  const d = lsGet("sync_dirty", {});
+  if (d[col]) { d[col] = d[col].filter(x => x !== id); lsSet("sync_dirty", d); }
+  syncSoon();
+}
+function syncSoon() {
+  if (!syncCfg()) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => syncNow(false), 2000);
+}
+function syncStatus(text, bad) {
+  const b = $("#btnSync");
+  if (!b) return;
+  b.textContent = "☁ " + text;
+  b.style.color = bad ? "var(--danger)" : "";
+}
+function hhmm() { const d = new Date(); return pad2(d.getHours()) + ":" + pad2(d.getMinutes()); }
+
+// Primera vez en este dispositivo: se marca todo lo que ya tienes para subirlo
+function syncInit() {
+  if (lsGet("sync_init", false)) return;
+  const d = {};
+  SYNC_COLS.forEach(c => {
+    d[c] = [];
+    MODES[c].db.forEach(r => { if (!r._u) r._u = r._t || Date.now(); d[c].push(r._id); });
+    saveDB(MODES[c]);
+  });
+  lsSet("sync_dirty", d);
+  lsSet("sync_init", true);
+  if (LAYOUT.u) lsSet("sync_layout_dirty", true);
+}
+
+// Aplica los registros que llegan de Google
+function applyPull(col, recs) {
+  const cfg = MODES[col];
+  let changed = 0;
+  recs.forEach(rec => {
+    if (!rec || !rec._id) return;
+    const local = cfg.db.find(r => r._id === rec._id);
+    const ru = Number(rec._u) || 0;
+    if (rec.deleted) {
+      if (local && (local._u || 0) <= ru) { cfg.db = cfg.db.filter(r => r !== local); changed++; }
+      else if (local) markDirty(col, local._id);
+      const d = lsGet("sync_dirty", {}); if (d[col]) { d[col] = d[col].filter(x => x !== rec._id); lsSet("sync_dirty", d); }
+      return;
+    }
+    const c = {};
+    cfg.order.forEach(k => { c[k] = rec[k] == null ? "" : String(rec[k]); });
+    c._id = rec._id; c._u = ru; c._t = Number(rec._t) || ru;
+    if (local) {
+      if ((local._u || 0) > ru) { markDirty(col, local._id); return; }
+      if ((local._u || 0) === ru) return;
+      Object.assign(local, c); changed++;
+      return;
+    }
+    const k = cfg.key(c);
+    const twin = k ? cfg.db.find(r => cfg.key(r) === k) : null;
+    if (twin) {
+      // El mismo registro se creó en dos dispositivos: se queda uno solo
+      const keepId = twin._id < c._id ? twin._id : c._id;
+      const dropId = keepId === twin._id ? c._id : twin._id;
+      const win = (twin._u || 0) >= ru ? twin : c;
+      const merged = Object.assign({}, win, { _id: keepId, _u: Date.now() });
+      cfg.db = cfg.db.filter(r => r !== twin);
+      cfg.db.push(merged);
+      if (dropId !== keepId) markTomb(col, dropId, Math.max(twin._u || 0, ru));
+      markDirty(col, keepId);
+      changed++;
+    } else { cfg.db.push(c); changed++; }
+  });
+  if (changed) saveDB(cfg);
+  return changed;
+}
+
+async function syncNow(manual) {
+  const cfg = syncCfg();
+  if (!cfg) { if (manual) openSyncDialog(); return; }
+  if (syncing) { syncQueued = true; return; }
+  syncing = true;
+  syncStatus("Sincronizando…");
+  try {
+    syncInit();
+    const dirty = lsGet("sync_dirty", {}), tomb = lsGet("sync_tomb", {});
+    const changes = {}, sent = {};
+    SYNC_COLS.forEach(c => {
+      const arr = [];
+      sent[c] = {};
+      (dirty[c] || []).forEach(id => { const r = MODES[c].db.find(x => x._id === id); if (r) { arr.push(r); sent[c][id] = r._u; } });
+      Object.keys(tomb[c] || {}).forEach(id => { arr.push({ _id: id, _u: tomb[c][id], _del: true }); sent[c][id] = tomb[c][id]; });
+      changes[c] = arr;
+    });
+    const layoutDirty = lsGet("sync_layout_dirty", false);
+    const body = { key: cfg.key, since: lsGet("sync_since", 0), changes, layoutU: LAYOUT.u || 0 };
+    if (layoutDirty && LAYOUT.u) body.layout = { u: LAYOUT.u, data: JSON.stringify(LAYOUT) };
+    const ctl = new AbortController();
+    const to = setTimeout(() => ctl.abort(), 40000);
+    let res;
+    try {
+      res = await fetch(cfg.url, { method: "POST", body: JSON.stringify(body), headers: { "Content-Type": "text/plain;charset=utf-8" }, signal: ctl.signal });
+    } finally { clearTimeout(to); }
+    let out;
+    try { out = await res.json(); } catch (e) { throw new Error("La dirección no responde como se esperaba. Revisa que la web app esté publicada con acceso para “Cualquier persona”."); }
+    if (!out.ok) throw new Error(out.error === "clave" ? "Clave incorrecta (o falta cambiarla en el script)." : "Error del servidor: " + out.error);
+
+    // Se quitan de la lista de pendientes solo los que no cambiaron mientras tanto
+    const d2 = lsGet("sync_dirty", {}), t2 = lsGet("sync_tomb", {});
+    SYNC_COLS.forEach(c => {
+      if (d2[c]) d2[c] = d2[c].filter(id => { if (!(id in sent[c])) return true; const r = MODES[c].db.find(x => x._id === id); return r && r._u !== sent[c][id]; });
+      if (t2[c]) Object.keys(t2[c]).forEach(id => { if (id in sent[c] && t2[c][id] === sent[c][id]) delete t2[c][id]; });
+    });
+    lsSet("sync_dirty", d2); lsSet("sync_tomb", t2);
+    if (body.layout && LAYOUT.u === body.layout.u) lsSet("sync_layout_dirty", false);
+
+    let got = 0;
+    SYNC_COLS.forEach(c => { got += applyPull(c, (out.pull && out.pull[c]) || []); });
+    if (out.layout && out.layout.data && (Number(out.layout.u) || 0) > (LAYOUT.u || 0)) {
+      try {
+        const nl = JSON.parse(out.layout.data);
+        if (validLayout(nl)) { LAYOUT = nl; LAYOUT.u = Number(out.layout.u); lastSaved = JSON.stringify(LAYOUT); undoStack = []; saveLayout(); got++; if (!$("#ed").hidden) { edSel = null; edRender(); } }
+      } catch (e) {}
+    }
+    lsSet("sync_since", Math.max(0, out.now - 5000));   // margen de seguridad por diferencias de reloj; repetir registros no hace daño
+    refreshLists();
+    if (currentId && !C().db.some(r => r._id === currentId)) {
+      currentId = null; dirty = false; $("#main").classList.add("is-empty"); $("#app").classList.remove("show-form");
+    }
+    renderList();
+    if (currentId && !dirty && got) openRecord(currentId);
+    syncStatus("Sincronizado " + hhmm());
+    if (manual) toast(got ? "Sincronizado: " + got + " cambios recibidos" : "Sincronizado: todo al día");
+  } catch (e) {
+    const msg = e && e.name === "AbortError" ? "Tardó demasiado" : (e && e.message) || "Sin conexión";
+    syncStatus("Pendiente (" + (navigator.onLine ? "error" : "sin internet") + ")", true);
+    if (manual) alert("No se pudo sincronizar.\n" + msg);
+    $("#syncMsg").textContent = "Último error: " + msg;
+  } finally {
+    syncing = false;
+    if (syncQueued) { syncQueued = false; syncSoon(); }
+  }
+}
+
+function openSyncDialog() {
+  const c = lsGet("sync_cfg", null) || {};
+  $("#syncUrl").value = c.url || "";
+  $("#syncKey").value = c.key || "";
+  $("#syncMsg").textContent = syncCfg() ? "Sincronización activa en este dispositivo." : "";
+  $("#dlgSync").showModal();
+}
 
 /* ====================================================================
    EVENTOS
@@ -1790,6 +1984,30 @@ $("#expCsv").addEventListener("click", async () => { dlg.close(); await exportCS
 
 // Si gira el iPad o cambia el ancho, se reajusta la altura de los campos de texto
 window.addEventListener("resize", () => C().form.querySelectorAll("textarea").forEach(autosize));
+
+
+$("#btnSync").addEventListener("click", openSyncDialog);
+$("#syncClose").addEventListener("click", () => $("#dlgSync").close());
+$("#syncSave").addEventListener("click", () => {
+  const url = $("#syncUrl").value.trim(), key = $("#syncKey").value.trim();
+  if (!/^https:\/\/script\.google\.com\//.test(url)) { $("#syncMsg").textContent = "La dirección debe empezar por https://script.google.com/"; return; }
+  if (!key) { $("#syncMsg").textContent = "Falta la clave."; return; }
+  const old = lsGet("sync_cfg", null);
+  if (!old || old.url !== url) { lsSet("sync_init", false); lsSet("sync_since", 0); }
+  lsSet("sync_cfg", { url, key });
+  $("#dlgSync").close();
+  syncNow(true);
+});
+$("#syncOff").addEventListener("click", () => {
+  if (!confirm("¿Desactivar la sincronización en este dispositivo? Tus datos locales se quedan.")) return;
+  try { localStorage.removeItem("sync_cfg"); } catch (e) {}
+  syncStatus("sin configurar");
+  $("#dlgSync").close();
+});
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") syncSoon(); });
+window.addEventListener("online", () => syncSoon());
+setInterval(() => { if (document.visibilityState === "visible") syncSoon(); }, 120000);
+if (syncCfg()) { syncStatus("Sincronizando…"); syncSoon(); } else syncStatus("sin configurar");
 
 // Pide al navegador que no borre los datos guardados (si lo permite)
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
